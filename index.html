@@ -30,7 +30,7 @@
 <title>Difusores TROX</title>
 <!-- Plataforma comum (_plataforma-hvac): tokens, base, componentes e folha do memorial. O build embute tudo no HTML único. -->
 <style>
-/* ==== plataforma v0.5.1: css/base.css ==== */
+/* ==== plataforma v0.6.0: css/base.css ==== */
 /* ---- importado: fontes.css ---- */
 /* Fontes embutidas (gerado por _plataforma-hvac\codigo\ferramentas\gera_fontes.py; não editar à mão).
    Arquivos woff2 do Google Fonts, subconjunto latin, sem alteração; letras fora dele usam a fonte seguinte da lista.
@@ -521,7 +521,7 @@ button.kpi-c:hover { border-color: var(--prim); }
 
 </style>
 <style>
-/* ==== plataforma v0.5.1: css/impressao.css ==== */
+/* ==== plataforma v0.6.0: css/impressao.css ==== */
 /* Plataforma HVAC: memorial em formato de folha e regras de impressão (o PDF sai pela impressão do navegador). */
 /* v0.5.0: a folha é papel e não flutua (sem sombra, só a borda); dentro dela ficam as fontes e os pesos da v0.4.1, para o PDF
    sair igual (a tela troca para IBM Plex; o memorial muda de fonte só numa etapa própria, com o Francisco) */
@@ -854,7 +854,7 @@ button.kpi-c:hover { border-color: var(--prim); }
 <body>
 <!-- Plataforma: página (topo, trilha, área da tela, faixa), namespace e formatação -->
 <script>
-/* ==== plataforma v0.5.1: js/interface/pagina.js ==== */
+/* ==== plataforma v0.6.0: js/interface/pagina.js ==== */
 /* Plataforma HVAC. Página comum: topo (marca, modo aprendizado, tema, comandos), trilha, área da tela, faixa de resultado,
    camada sobre a tela, campo de arquivo e captura de erro de JavaScript. Desde a v0.4.0, também o botão Menu, a barra de
    passos e o balão de dica do celular: nascem ocultos (base.css) e só aparecem em tela estreita.
@@ -863,7 +863,7 @@ button.kpi-c:hover { border-color: var(--prim); }
 window.HVAC = window.HVAC || {};
 (function (H) {
   'use strict';
-  H.plataforma = { versao: '0.5.1' };   // o build do app grava aqui a versão de _plataforma-hvac\codigo\VERSAO.txt
+  H.plataforma = { versao: '0.6.0' };   // o build do app grava aqui a versão de _plataforma-hvac\codigo\VERSAO.txt
 
   /* Erro de JavaScript fica visível na página (e aparece no teste automático) */
   window.onerror = function (msg, arq, linha) {
@@ -900,12 +900,12 @@ window.HVAC = window.HVAC || {};
 
 </script>
 <script>
-/* ==== plataforma v0.5.1: js/nucleo.js ==== */
+/* ==== plataforma v0.6.0: js/nucleo.js ==== */
 /* Namespace único do app. Módulos: dados (tabelas), util, motor (cálculo, sem DOM), ui (tela). */
 window.HVAC = window.HVAC || {};
 (function (H) {
   'use strict';
-  H.versao = '3.3.0';
+  H.versao = '3.3.1';
   H.dados = H.dados || {};
   H.util = H.util || {};
   H.motor = H.motor || {};
@@ -914,7 +914,7 @@ window.HVAC = window.HVAC || {};
 
 </script>
 <script>
-/* ==== plataforma v0.5.1: js/util/formatacao.js ==== */
+/* ==== plataforma v0.6.0: js/util/formatacao.js ==== */
 /* Formatação numérica (padrão brasileiro: vírgula decimal) e utilidades de texto. */
 (function (H) {
   'use strict';
@@ -972,7 +972,7 @@ window.HVAC = window.HVAC || {};
 (function (global) {
   'use strict';
   var D = global.Difusores || {};
-  D.versao = '3.3.0';
+  D.versao = '3.3.1';
   D.versaoBase = 'TROX C1-004, C1-005, C2-002, C2-005, C2-006, C2-007, C2-010 e 2/8/P/2 (05/2013); 2/7/EN/6 (08/2008)';
   D.dados = D.dados || { trox: {}, normas: {} };
   D.util = D.util || {};
@@ -2741,7 +2741,7 @@ window.HVAC = window.HVAC || {};
       grupo: 'ar', titulo: 'Massa específica do ar do ambiente (altitude)',
       formula: 'ρ = 1,2 · p/p₀ = 1,2 · (1 − 2,25577·10⁻⁵ · z)^5,2559',
       subst: 'ρ = 1,2 · (1 − 2,25577·10⁻⁵ · ' + F.num(z, 0) + ')^5,2559',
-      valor: v, unidade: 'kg/m³', casas: 3, fonte: 'ASHRAE Handbook — Fundamentals 2021 cap. 1, Equação (3) (pressão barométrica × altitude); massa específica de referência sem correção de temperatura (convenção do ar padrão, a mesma da carga térmica e do app de redes; ao nível do mar ρ·cp = 1228 J/(m³·°C), a 0,2 % do 1,23 kJ/(m³·°C) do ar padrão do cap. 18, p. 18.15). Pela lei dos gases, na base de ar seco (a coerente com o cp usado), a 1.060 m a vazão sairia 2,7 % maior na condição do ambiente (24 °C, 50 %) e 0,7 % menor na do insuflamento (14 °C, mesma umidade absoluta); ao nível do mar, 2,5 % maior e 0,9 % menor'
+      valor: v, unidade: 'kg/m³', casas: 3, fonte: 'ASHRAE Handbook — Fundamentals 2021 cap. 1, Equação (3) (pressão barométrica × altitude); massa específica de referência sem correção de temperatura (convenção do ar padrão, a mesma da carga térmica e do app de redes; ao nível do mar ρ·cp = 1228 J/(m³·°C), a 0,2 % do 1,23 kJ/(m³·°C) do ar padrão do cap. 18, p. 18.15). Pela lei dos gases, na base de ar seco (a coerente com o cp usado), a 1.160 m a vazão sairia 2,8 % maior na condição do ambiente (24 °C, 50 %) e 0,7 % menor na do insuflamento (14 °C, mesma umidade absoluta); ao nível do mar, 2,5 % maior e 0,9 % menor'
     });
     return v;
   }
@@ -4646,10 +4646,14 @@ window.HVAC = window.HVAC || {};
     amb.retorno.familias = familiasBool(pd.retornoFamilias, A.FAMILIAS_RET, true);
     return amb;
   }
-  /* Altitude com que um projeto novo começa: Brasília, 1.060 m (o valor da base de clima do app de carga térmica,
-   * carga-termica-web\codigo\dados\nbr16401-1_A_clima_brasilia.csv). É valor inicial da tela, não padrão de arquivo: arquivo
-   * sem altitude continua abrindo ao nível do mar (0 m), e o exemplo da v2.1.3 segue a 0 m. */
-  var ALTITUDE_PADRAO = 1060;
+  /* Altitude com que um projeto novo começa: Brasília, 1.160 m desde a v3.3.1 (C4; era 1.060 m): a elevação da estação 867150
+   * na ficha de clima do ASHRAE Fundamentals 2025, a mesma da carga térmica e das redes. É valor inicial da tela, não padrão de
+   * arquivo: a altitude gravada abre como está (1.060 m abre com 1.060 m), arquivo sem altitude continua abrindo ao nível do
+   * mar (0 m), e o exemplo da v2.1.3 segue a 0 m. */
+  var ALTITUDE_PADRAO = 1160;
+  // Fonte da altitude padrão (texto aprovado, TA1 e TA2 da 3.3.1): campo Altitude e Referências
+  var ALTITUDE_FONTE = 'Premissa de projeto: a elevação da estação 867150 (BRASILIA, 2000-2023) na ficha de clima do ASHRAE Handbook Fundamentals 2025 (SI), p. 1; ' +
+    'a mesma da carga térmica e das redes - CONFERIR com a folha oficial (o PDF é impressão de página web de terceiro).';
   function novoProjeto() {
     var p = exemplo();
     p.projeto.nome = ''; p.projeto.altitude = ALTITUDE_PADRAO; p.ambientes = [novoAmbiente(p.projeto, 'Ambiente 1')];
@@ -4768,7 +4772,7 @@ window.HVAC = window.HVAC || {};
     return s;
   }
 
-  D.util.formato4 = { FORMATO: FORMATO, VERSAO_FORMATO: VERSAO_FORMATO, ALTITUDE_PADRAO: ALTITUDE_PADRAO, abrir: abrir, texto: texto, exemplo: exemplo, entradaExemplo: entradaExemplo, novoAmbiente: novoAmbiente, novoProjeto: novoProjeto,
+  D.util.formato4 = { FORMATO: FORMATO, VERSAO_FORMATO: VERSAO_FORMATO, ALTITUDE_PADRAO: ALTITUDE_PADRAO, ALTITUDE_FONTE: ALTITUDE_FONTE, abrir: abrir, texto: texto, exemplo: exemplo, entradaExemplo: entradaExemplo, novoAmbiente: novoAmbiente, novoProjeto: novoProjeto,
     deEntrada: deEntrada, NIVEL: NIVEL };
 })(window.Difusores);
 
@@ -4926,8 +4930,8 @@ window.HVAC = window.HVAC || {};
       else if (!temBloco) linha(rel, 'info', 'Projeto', 'Calor sensível do ambiente', '(ausente)', '(vazio)',
         'arquivo do formato 3 sem o bloco de resultados (salvo por outra ferramenta ou editado): abra-o na carga térmica v0.5.1 ou mais nova, salve de novo e importe, ou digite o calor sensível do ambiente (sem ar exterior, sem latente, sem calor ao retorno) ou a vazão');
       if (projetoE && projetoE.altitude !== F4.ALTITUDE_PADRAO) {
-        linha(rel, 'info', 'Projeto', 'Altitude', '1.060 m (Brasília)', F.num(projetoE.altitude, 0) + ' m',
-          'a carga térmica calcula para Brasília (1.060 m); este projeto está a ' + F.num(projetoE.altitude, 0) + ' m e não foi alterado');
+        linha(rel, 'info', 'Projeto', 'Altitude', F.num(F4.ALTITUDE_PADRAO, 0) + ' m (Brasília)', F.num(projetoE.altitude, 0) + ' m',
+          'a carga térmica calcula para Brasília (' + F.num(F4.ALTITUDE_PADRAO, 0) + ' m); este projeto está a ' + F.num(projetoE.altitude, 0) + ' m e não foi alterado');
       }
       return { ok: true, ambientes: novos, relatorio: rel, versaoOrigem: vf, motivo: '' };
     } catch (err) {
@@ -4954,7 +4958,7 @@ window.HVAC = window.HVAC || {};
 </script>
 <!-- Plataforma: componentes e casca -->
 <script>
-/* ==== plataforma v0.5.1: js/interface/componentes.js ==== */
+/* ==== plataforma v0.6.0: js/interface/componentes.js ==== */
 /* Plataforma HVAC. Componentes do guia de interface: campo com estado, selos, valor calculado, seletor, segmentado, passos,
    cabeçalho de tela, indicador, bloco recolhível, barras, tabela de passos e, desde a v0.4.0, a lista de cartões do celular.
    Só montam HTML; não conhecem app nem motor.
@@ -5116,7 +5120,7 @@ window.HVAC = window.HVAC || {};
 
 </script>
 <script>
-/* ==== plataforma v0.5.1: js/interface/casca.js ==== */
+/* ==== plataforma v0.6.0: js/interface/casca.js ==== */
 /* Plataforma HVAC. Casca comum dos apps: estado, armazenamento, rotas, trilha, faixa de resultado, gaveta, janela, paleta de comandos,
    tema, modo aprendizado, arquivo de projeto com relatório de importação e impressão do memorial; desde a v0.4.0, o celular
    (Menu, barra de passos, Voltar, dica por toque, tabelas que rolam, memorial em escala, teclado), só com a tela estreita.
@@ -5938,7 +5942,8 @@ window.HVAC = window.HVAC || {};
     DT: 'T_ambiente − T_insuflado. O app trata só resfriamento: digite o valor positivo.',
     TO: 'NBR 16401-1:2024, 5.2.1: condição interna dentro da faixa de conforto da NBR 16401-2. Define o limite de velocidade do ar (6.3.2.4). Padrão do app (não vem da cláusula): 24 °C no resfriamento, 21 °C no aquecimento.',
     UR: 'Entra no calor específico do ar úmido (cp = 1006 + 1860·w), usado na vazão pelo calor sensível do ambiente. Padrão: 50 %.',
-    ALT: 'A altitude corrige a massa específica do ar pela atmosfera padrão. Projeto novo já começa com a altitude de Brasília (1.060 m, a mesma do app de carga térmica); mude só se a obra for em outro local. Nível do mar = 0 m.',
+    ALT: 'A altitude corrige a massa específica do ar pela atmosfera padrão. Projeto novo já começa com a altitude de Brasília, ' + f.num(F4.ALTITUDE_PADRAO, 0) + ' m. ' +
+      F4.ALTITUDE_FONTE + ' Mude só se a obra for em outro local. Nível do mar = 0 m.',
     RET: 'Percentual da vazão de insuflamento que retorna pelas grelhas (o restante é exaustão/vazamento).',
     QESP: 'Calculada.',
     APL: 'Preenche o limite em dB(A) (NBR 10152, exigida pela NBR 16401-1 7.4.1) e a classe de velocidade na boca (prática de projeto). Valores da ABNT NBR 10152:2017 (versão corrigida 2020), seção 10, Tabela 3 (RLAeq); "Área técnica" é valor de projeto (não consta na tabela).',
@@ -7073,7 +7078,7 @@ window.HVAC = window.HVAC || {};
       '<div class="ref-b"><h3>Regras de distribuição do retorno e de arranjo</h3>' + regras(E) + '</div>');
     s += secao(S['ref-trox'], baseTrox());
     s += secao(S['ref-premissas'], '<p class="fraco">O que o cálculo adota sem documento-fonte primário na biblioteca (fonte secundária, CONFERIR ou premissa declarada com o efeito medido), por prática de projeto ou por critério do app. A mesma lista vai ao memorial.</p>' + premissas());
-    s += secao(S['ref-local'], '<p>Projeto novo começa na altitude de Brasília: <b>' + f.num(D.util.formato4.ALTITUDE_PADRAO, 0) + ' m</b> (ABNT NBR 16401-1:2024, Anexo A, Tabela A.2, Dados locais das cidades: Brasília, DF; o ASHRAE Handbook — Fundamentals 2021, cap. 14, lista a estação de Brasília com a mesma elevação). Altitude em uso neste projeto: <b>' +
+    s += secao(S['ref-local'], '<p>Projeto novo começa na altitude de Brasília: <b>' + f.num(D.util.formato4.ALTITUDE_PADRAO, 0) + ' m</b>. ' + esc(D.util.formato4.ALTITUDE_FONTE) + ' Até a v3.3.0 o app usava 1.060 m (ABNT NBR 16401-1:2024, Anexo A, Tabela A.2): arquivo gravado com 1.060 m abre com 1.060 m. Altitude em uso neste projeto: <b>' +
       f.num(E.projeto.altitude, 0) + ' m</b> (Projeto, bloco Local).</p>');
     return s;
   }
