@@ -905,7 +905,7 @@ window.HVAC = window.HVAC || {};
 window.HVAC = window.HVAC || {};
 (function (H) {
   'use strict';
-  H.versao = '3.3.1';
+  H.versao = '3.3.2';
   H.dados = H.dados || {};
   H.util = H.util || {};
   H.motor = H.motor || {};
@@ -972,7 +972,7 @@ window.HVAC = window.HVAC || {};
 (function (global) {
   'use strict';
   var D = global.Difusores || {};
-  D.versao = '3.3.1';
+  D.versao = '3.3.2';
   D.versaoBase = 'TROX C1-004, C1-005, C2-002, C2-005, C2-006, C2-007, C2-010 e 2/8/P/2 (05/2013); 2/7/EN/6 (08/2008)';
   D.dados = D.dados || { trox: {}, normas: {} };
   D.util = D.util || {};
@@ -7210,11 +7210,6 @@ window.HVAC = window.HVAC || {};
   var BASE_NORMAS = 'Base técnica principal: ABNT NBR 16401-1, -2 e -3:2024 e ASHRAE Handbook — Fundamentals 2021 (cap. 20 Space Air Diffusion; cap. 9 Thermal Comfort). Cada critério cita a cláusula de origem.';
   var METODO = 'Interpolação direta nas tabelas dos catálogos TROX, sem extrapolação; gráficos digitalizados ou modelados, com o erro e as ressalvas declarados em cada passo. Cada alternativa passa pelas verificações de ruído no ambiente, perda de carga, velocidade do ar na zona ocupada e alcance ÷ comprimento característico; a ordem das alternativas segue a nota da solução, que é critério do app, sem norma.';
 
-  function secaoReferencias(num) {
-    return '<h2>' + num + '. Método e referências</h2><p class="nota">' + esc(BASE_NORMAS) + '</p>' + H.ui.telaReferencias.tabelaNormas() +
-      lista(['Dados de produto: catálogos TROX C2-007 (ADLQ, ADE), C2-006 (ADLR), C2-005 (ADLQ/ADLR — Feff e gráficos de registro, acessórios, atenuação e velocidade vertical), C2-002 (ADE/ALS — dimensões), C1-004 (AT/VAT, AR) e C1-005 (AGS-T, AE), edição 05/2013. Interpolação direta nas tabelas, sem extrapolação; gráficos digitalizados/modelados com erro declarado em cada passo.',
-        'Metodologia de seleção (9 seções): estrutura das verificações, nota da solução de 0 a 100, fatores e selos, com pesos editáveis (Projeto, Mais opções).']);
-  }
   function tabelaPremissas() {
     return '<table class="sel-tab"><thead><tr><th>Item</th><th>O que o app adota</th><th>Fonte</th><th>Situação</th></tr></thead><tbody>' + D.motor.premissas().map(function (p) {
       return '<tr data-premissa="' + esc(p.id) + '"><td>' + esc(p.titulo) + '</td><td>' + esc(p.texto) + '</td><td class="fonte">' + esc(p.fonte) + '</td><td>' + esc(p.situacao) + '</td></tr>';
@@ -7433,14 +7428,6 @@ window.HVAC = window.HVAC || {};
       linhaCV('Altitude', f.num(E.projeto.altitude, 0) + ' m'), linhaCV('Configurações', cfg)]);
   }
 
-  function secaoPendencias(E, i, num) {
-    var l = pendenciasDe(E, i).filter(function (x) { return x.nivel !== 'info'; });
-    var h = '<h2>' + num + '. Pendências na emissão</h2>';
-    if (!l.length) return h + '<p>Nenhuma pendência de nível “impede” ou “conferir” na data da emissão.</p>';
-    return h + '<table class="sel-tab"><thead><tr><th>Onde</th><th>Pendência</th></tr></thead><tbody>' + l.map(function (x) {
-      return '<tr><td>' + esc(x.onde) + '</td><td>' + esc(x.texto) + (x.detalhes.length ? '<ul class="lista-m">' + x.detalhes.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' : '') + '</td></tr>';
-    }).join('') + '</tbody></table>';
-  }
 
   // ---------------------------------------------------------------- tela
   function tela(E, U, R) {
@@ -7465,7 +7452,7 @@ window.HVAC = window.HVAC || {};
     s += secaoBases(E) + secaoResumo(E, indices, 2);
     var num = 2;
     indices.forEach(function (k) { num++; s += secaoAmbiente(E, k, num); });
-    s += secaoReferencias(++num) + secaoPremissas(++num) + secaoLimites(++num) + secaoPendencias(E, i === null ? undefined : i, ++num);
+    s += secaoPremissas(++num) + secaoLimites(++num);
 
     return fora + '<article class="folha">' + s + '</article>';
   }
