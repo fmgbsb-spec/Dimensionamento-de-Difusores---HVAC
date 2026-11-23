@@ -912,7 +912,7 @@ window.HVAC = window.HVAC || {};
 window.HVAC = window.HVAC || {};
 (function (H) {
   'use strict';
-  H.versao = '3.5.0';
+  H.versao = '3.6.0';
   H.dados = H.dados || {};
   H.util = H.util || {};
   H.motor = H.motor || {};
@@ -979,7 +979,7 @@ window.HVAC = window.HVAC || {};
 (function (global) {
   'use strict';
   var D = global.Difusores || {};
-  D.versao = '3.5.0';
+  D.versao = '3.6.0';
   D.versaoBase = 'TROX C1-003, TROX C1-004, TROX C1-005, TROX C1-006, TROX C2-002, TROX C2-005, TROX C2-006, TROX C2-007, TROX C2-010 e 2/8/P/2 (05/2013); TROX 2/7/EN/6 (08/2008)';
   D.dados = D.dados || { trox: {}, normas: {} };
   D.util = D.util || {};
@@ -1285,7 +1285,7 @@ window.HVAC = window.HVAC || {};
 
   // Listas dos campos de escolha da entrada (as mesmas da tela)
   var LISTAS = {
-    postura: ['emPe', 'sentado'], montagem: ['forro', 'suspenso'], modo: ['vazao', 'carga'], vzoModo: ['nbr', 'projeto'],
+    postura: ['emPe', 'sentado'], montagem: ['forro', 'suspenso'], modo: ['vazao', 'carga', 'ventilacao'], vzoModo: ['nbr', 'projeto'],
     registro: ['sem', 'aberto', '50', '25'], entradaAI: ['H', 'V'], acessorio: ['nenhum', 'captor', 'plenum'], tratamento: ['normal', 'ressonante', 'absorvente'],
     posicaoRetorno: ['forro', 'paredeAlta', 'zonaLonge', 'zonaAssentos', 'veneziana'], tipoRetorno: ['dutado', 'plenum'],
     montagemGrelha: ['junto', 'afastada']   // v3.5.0 (A1): grelha de insuflamento na parede; ausente = junto (o resultado da v3.4.0 não muda)
@@ -1377,7 +1377,15 @@ window.HVAC = window.HVAC || {};
     bloco(c, e, 'ar', 'Vazão e condições do ar');
     var a = e.ar;
     campoLista(c, a, 'modo', 'Entrada da vazão', LISTAS.modo, 'vazao');
-    campoNum(c, a, 'Q', 'Vazão total de insuflamento', pos, 'deve ser maior que zero');
+    var vent = a.modo === 'ventilacao';
+    if (vent) campoNum(c, a, 'Q', 'Vazão total de insuflamento', function (n) { return n >= 0; }, 'não pode ser negativa');   // v3.6.0: 0 = só exaustão
+    else campoNum(c, a, 'Q', 'Vazão total de insuflamento', pos, 'deve ser maior que zero');
+    if (vent) {
+      // v3.6.0 (E3): chaves do modo "Vazões da ventilação"; ausentes, entram com o padrão (sem linha); inválidas, com linha
+      campoNum(c, a, 'Qsai', 'Vazão de retorno ou de exaustão', function (n) { return n >= 0; }, 'não pode ser negativa');
+      campoLista(c, a, 'papelSaida', 'Saída de ar', ['retorno', 'exaustao'], 'retorno');
+      campoBool(c, a, 'isotermico', 'Temperatura do ar insuflado (isotérmico)', false);
+    }
     campoNum(c, a, 'qs', 'Calor sensível do ambiente', pos, 'deve ser maior que zero');
     campoNum(c, a, 'dT', 'ΔT de insuflamento', qualquer);
     campoNum(c, a, 'to', 'Temperatura operativa de projeto', qualquer, null, a.dT < 0 ? n1.toPadraoAquecimento : n1.toPadraoResfriamento,
@@ -2708,10 +2716,12 @@ window.HVAC = window.HVAC || {};
   }
 
   function avisos(e) {
-    var lista = [], ar = (e && e.ar) || {}, geo = (e && e.geo) || {}, carga = ar.modo === 'carga';
+    var lista = [], ar = (e && e.ar) || {}, geo = (e && e.geo) || {}, carga = ar.modo === 'carga', vent = ar.modo === 'ventilacao', iso = vent && (ar.isotermico === true || !(ar.Q > 0));   // só exaustão também dispensa o ΔT
     function add(nivel, codigo, campo, texto) { lista.push({ nivel: nivel, codigo: codigo, campo: campo, texto: texto }); }
 
-    if (vazio(ar.dT) || typeof ar.dT !== 'number') {
+    // v3.6.0: no modo isotérmico o ΔT não existe (as contas usam 0): dtVazio e dtZero não saem só nesse modo
+    if (iso) { /* sem aviso de ΔT */ }
+    else if (vazio(ar.dT) || typeof ar.dT !== 'number') {
       add('erro', 'dtVazio', 'ar.dT', 'ΔT de insuflamento vazio: ' + (carga ? 'sem ele a vazão não sai do calor sensível do ambiente' : 'sem ele não se calculam a capacidade sensível, o Ez e a validade do catálogo') +
         '. O app não adota valor no lugar.');
     } else if (ar.dT === 0) {
@@ -2719,6 +2729,9 @@ window.HVAC = window.HVAC || {};
     }
     if (carga) {
       if (!(ar.qs > 0)) add('erro', 'cargaZero', 'ar.qs', 'Calor sensível do ambiente vazio ou igual a zero: não há vazão a calcular.');
+    } else if (vent) {
+      // só exaustão (insuflamento 0) é caso válido; erro só sem nenhuma das duas vazões
+      if (!(ar.Q > 0) && !(ar.Qsai > 0)) add('erro', 'vazaoZero', 'ar.Q', 'Vazões de insuflamento e de saída vazias ou iguais a zero: não há ar a distribuir.');
     } else if (!(ar.Q > 0)) {
       add('erro', 'vazaoZero', 'ar.Q', 'Vazão total de insuflamento vazia ou igual a zero: não há vazão a distribuir.');
     }
@@ -2849,7 +2862,14 @@ window.HVAC = window.HVAC || {};
         situacao: 'premissa declarada: lei ajustada com o erro medido; T50/L de fonte secundária; dados interpretados sem confirmação do fabricante, só nas células citadas e no ângulo das aletas da AH / AF' },
       { id: 'operativa', titulo: 'Temperatura operativa igual à temperatura do ar',
         texto: 'Os limites de velocidade da NBR 16401-2 usam a temperatura operativa. Quando o ambiente vem da carga térmica, entra a temperatura interna do ar de lá: premissa de temperatura radiante média igual à do ar (t_o = A·t_a + (1 − A)·t_r). Com superfícies muito quentes ou frias (vidro, cobertura), digite a temperatura operativa.',
-        fonte: 'NBR 16401-2, p. 33, l. 28; NBR 16401-2, p. 34, l. 10 e Tabela 14', situacao: 'premissa declarada' }
+        fonte: 'NBR 16401-2, p. 33, l. 28; NBR 16401-2, p. 34, l. 10 e Tabela 14', situacao: 'premissa declarada' },
+      // v3.6.0 (E3, X11): modo "Vazões da ventilação"
+      { id: 'ventilacao', titulo: 'Modo só ventilação: isotérmico e exaustão',
+        texto: 'Modo isotérmico: Ez pela linha do ar frio pelo forro (ar insuflado não mais quente que o ambiente). ' +
+          'Exaustão: tabelas e velocidades de face do retorno (TROX C1-004 e C1-005; Krueger, p. a1-14). ' +
+          'AH e AF fora da exaustão: o catálogo da biblioteca não traz Δp nem ruído de retorno para elas.',
+        fonte: 'NBR 16401-3, p. 12, l. 9; TROX C1-004, p. 1 e 2; TROX C1-005, p. 1 e 2; TROX C1-001, p. 2 e 4; TROX C1-008, p. 3; ' + n.bocas.retornoFace.fonteCurta,
+        situacao: 'premissa declarada' }
     ];
   }
 
@@ -2875,7 +2895,9 @@ window.HVAC = window.HVAC || {};
   // Temperatura operativa de projeto: a informada ou o padrão da NBR 16401-1 (resfriamento ou aquecimento)
   function tempOperativa(e) {
     var to = e.ar.to, ci = D.dados.normas.nbr16401_1.condicoesInternas;
-    if (to === undefined || to === null || isNaN(to)) to = e.ar.dT < 0 ? ci.toPadraoAquecimento : ci.toPadraoResfriamento;
+    // v3.6.0: isotérmico ou só exaustão não usa o ΔT gravado (um ΔT negativo antigo não troca o padrão para aquecimento)
+    var semDT = isotermico(e) || (e.ar.modo === 'ventilacao' && !(e.ar.Q > 0));
+    if (to === undefined || to === null || isNaN(to)) to = !semDT && e.ar.dT < 0 ? ci.toPadraoAquecimento : ci.toPadraoResfriamento;
     return to;
   }
 
@@ -2924,7 +2946,12 @@ window.HVAC = window.HVAC || {};
     if (r) r.passo({ grupo: 'ambiente', titulo: 'Área do ambiente', formula: 'A = C · L', subst: 'A = ' + F.num(g.C, 2) + ' · ' + F.num(g.W, 2), valor: g.area, unidade: 'm²', casas: 2, fonte: 'Geometria' });
     if (r) r.passo({ grupo: 'ambiente', titulo: 'Volume do ambiente', formula: 'V = A · H', subst: 'V = ' + F.num(g.area, 2) + ' · ' + F.num(g.H, 2), valor: g.volume, unidade: 'm³', casas: 1, fonte: 'Geometria' });
     g.rho = rho(e.ar.z || 0, r);
-    g.dT = e.ar.dT;
+    // v3.6.0 (E3): modo "Vazões da ventilação"; isotérmico = ar insuflado à temperatura do ambiente (ΔT = 0 nas contas)
+    g.ventilacao = e.ar.modo === 'ventilacao';
+    g.isotermico = isotermico(e);
+    g.papelSaida = g.ventilacao && e.ar.papelSaida === 'exaustao' ? 'exaustao' : 'retorno';
+    // só exaustão (insuflamento 0): sem ar insuflado, o ΔT não entra em conta nenhuma
+    g.dT = g.isotermico || (g.ventilacao && !(e.ar.Q > 0)) ? 0 : e.ar.dT;
     var um = umidade(e, r);
     g.w = um.w; g.cp = um.cp; g.ur = um.ur;
     if (e.ar.modo === 'carga') {
@@ -2938,17 +2965,27 @@ window.HVAC = window.HVAC || {};
         valor: g.Q, unidade: 'm³/h', casas: 0, fonte: 'Balanço de energia sensível'
       });
     } else {
-      g.Q = e.ar.Q;
+      g.Q = g.ventilacao ? (e.ar.Q > 0 ? e.ar.Q : 0) : e.ar.Q;
       if (r) r.passo({ grupo: 'ambiente', titulo: 'Vazão total de insuflamento (informada)', formula: 'Q', subst: 'Q = ' + F.num(g.Q, 0), valor: g.Q, unidade: 'm³/h', casas: 0, fonte: 'Dado de entrada' });
     }
     g.qs = g.rho * g.cp * g.Q / 3600 * g.dT;
-    if (r) r.passo({ grupo: 'ambiente', titulo: 'Capacidade sensível do ar insuflado', formula: 'Qs = ρ · cp · Q/3600 · ΔT', subst: 'Qs = ' + F.num(g.rho, 3) + ' · ' + F.num(g.cp, 1) + ' · ' + F.num(g.Q, 0) + '/3600 · ' + F.num(g.dT, 1), valor: g.qs, unidade: 'W', casas: 0, fonte: 'Balanço de energia sensível' });
-    g.qEsp = g.Q / g.area;
-    if (r) r.passo({ grupo: 'ambiente', titulo: 'Vazão específica', formula: 'q = Q / A', subst: 'q = ' + F.num(g.Q, 0) + ' / ' + F.num(g.area, 2), valor: g.qEsp, unidade: 'm³/h·m²', casas: 1, fonte: 'Geometria' });
-    g.ren = g.Q / g.volume;
-    if (r) r.passo({ grupo: 'ambiente', titulo: 'Taxa de renovação', formula: 'N = Q / V', subst: 'N = ' + F.num(g.Q, 0) + ' / ' + F.num(g.volume, 1), valor: g.ren, unidade: 'ren/h', casas: 1, fonte: 'Geometria' });
-    g.Qret = g.Q * (e.ar.retornoPct || 0) / 100;
-    if (r) r.passo({ grupo: 'ambiente', titulo: 'Vazão de retorno', formula: 'Qr = Q · %ret', subst: 'Qr = ' + F.num(g.Q, 0) + ' · ' + F.num(e.ar.retornoPct, 0) + '%', valor: g.Qret, unidade: 'm³/h', casas: 0, fonte: 'Dado de entrada' });
+    // isotérmico: sem capacidade sensível (o passo sai do memorial)
+    if (r && !(g.ventilacao && g.dT === 0)) r.passo({ grupo: 'ambiente', titulo: 'Capacidade sensível do ar insuflado', formula: 'Qs = ρ · cp · Q/3600 · ΔT', subst: 'Qs = ' + F.num(g.rho, 3) + ' · ' + F.num(g.cp, 1) + ' · ' + F.num(g.Q, 0) + '/3600 · ' + F.num(g.dT, 1), valor: g.qs, unidade: 'W', casas: 0, fonte: 'Balanço de energia sensível' });
+    // revisor D3 (2026-11-23, opção "pela exaustão"): só exaustão (insuflamento 0) → vazão específica e renovação pela exaustão
+    var soExa = g.ventilacao && !(g.Q > 0) && g.papelSaida === 'exaustao', qRef = soExa ? (e.ar.Qsai > 0 ? e.ar.Qsai : 0) : g.Q, sQ = soExa ? 'Qe' : 'Q';
+    g.qEsp = qRef / g.area;
+    if (r) r.passo({ grupo: 'ambiente', titulo: soExa ? 'Vazão específica da exaustão' : 'Vazão específica', formula: 'q = ' + sQ + ' / A', subst: 'q = ' + F.num(qRef, 0) + ' / ' + F.num(g.area, 2), valor: g.qEsp, unidade: 'm³/h·m²', casas: 1, fonte: 'Geometria' });
+    g.ren = qRef / g.volume;
+    if (r) r.passo({ grupo: 'ambiente', titulo: soExa ? 'Taxa de renovação pela exaustão' : 'Taxa de renovação', formula: 'N = ' + sQ + ' / V', subst: 'N = ' + F.num(qRef, 0) + ' / ' + F.num(g.volume, 1), valor: g.ren, unidade: 'ren/h', casas: 1, fonte: 'Geometria' });
+    if (g.ventilacao) {
+      // vazão de saída absoluta (retorno ou exaustão), no lugar da % do insuflamento (pode passar do insuflamento e existir sem ele)
+      g.Qret = e.ar.Qsai > 0 ? e.ar.Qsai : 0;
+      var ex = g.papelSaida === 'exaustao';
+      if (r) r.passo({ grupo: 'ambiente', titulo: ex ? 'Vazão de exaustão (informada)' : 'Vazão de retorno (informada)', formula: ex ? 'Qe' : 'Qr', subst: (ex ? 'Qe = ' : 'Qr = ') + F.num(g.Qret, 0), valor: g.Qret, unidade: 'm³/h', casas: 0, fonte: 'Dado de entrada' });
+    } else {
+      g.Qret = g.Q * (e.ar.retornoPct || 0) / 100;
+      if (r) r.passo({ grupo: 'ambiente', titulo: 'Vazão de retorno', formula: 'Qr = Q · %ret', subst: 'Qr = ' + F.num(g.Q, 0) + ' · ' + F.num(e.ar.retornoPct, 0) + '%', valor: g.Qret, unidade: 'm³/h', casas: 0, fonte: 'Dado de entrada' });
+    }
     if (r) r.passo({ grupo: 'ambiente', titulo: 'Zona ocupada', formula: 'altura e recuos das paredes', subst: 'altura ' + F.num(g.zo, 2) + ' m (' + (e.geo.postura === 'sentado' ? 'sentado' : 'em pé') + '); recuos: x=0 ' + F.num(g.zona.recuo['-x'] || 0.3, 1) + ' m, x=C ' + F.num(g.zona.recuo['+x'] || 0.3, 1) + ' m, y=0 ' + F.num(g.zona.recuo['-y'] || 0.3, 1) + ' m, y=L ' + F.num(g.zona.recuo['+y'] || 0.3, 1) + ' m', valor: g.zo, unidade: 'm', casas: 2, fonte: 'NBR 16401-2, p. 8, l. 11' });
     g.H1 = g.Hinst - g.zo;
     if (r) r.passo({ grupo: 'ambiente', titulo: 'Distância do terminal ao topo da zona ocupada', formula: 'H1 = h_inst − h_zo', subst: 'H1 = ' + F.num(g.Hinst, 2) + ' − ' + F.num(g.zo, 2), valor: g.H1, unidade: 'm', casas: 2, fonte: 'Geometria; zona ocupada NBR 16401-2, p. 8, l. 11' });
@@ -2968,7 +3005,10 @@ window.HVAC = window.HVAC || {};
     return g;
   }
 
-  D.motor.ar = { rho: rho, ambiente: ambiente, umidade: umidade, pws: pws };
+  // Modo isotérmico (v3.6.0): só no modo "Vazões da ventilação"
+  function isotermico(e) { return !!(e && e.ar && e.ar.modo === 'ventilacao' && e.ar.isotermico === true); }
+
+  D.motor.ar = { rho: rho, ambiente: ambiente, umidade: umidade, pws: pws, isotermico: isotermico };
 })(window.Difusores);
 
 </script>
@@ -4168,7 +4208,13 @@ window.HVAC = window.HVAC || {};
     vs.push(V.item({ id: 'regulagem', criterio: 'Dispositivo de regulagem de vazão (na peça ou no ramal)', valor: regOk ? 1 : 0, valorTxt: e.crit.registro !== 'sem' ? 'registro na peça' : (e.crit.regulagemRamal ? 'registro no ramal' : 'nenhum'), limiteTxt: 'obrigatório', tipo: 'info', situacao: regOk ? 'atende' : 'alerta', fonte: 'NBR 16401-1, p. 22, l. 19' }));
     vs.push(V.item({ id: 'registroFech', criterio: 'Registro junto à boca fechado no máximo 50 % do curso', valor: e.crit.registro === '25' ? 75 : (e.crit.registro === '50' ? 50 : 0), valorTxt: e.crit.registro === '25' ? '75 % fechado' : (e.crit.registro === '50' ? '50 % fechado' : 'aberto / sem registro'), limiteTxt: '≤ 50 %', tipo: 'info', situacao: e.crit.registro === '25' ? 'alerta' : 'atende', fonte: 'NBR 16401-1, p. 29, l. 34' }));
     var dtOk = !fam.dtValido || (amb.dT >= 0 ? amb.dT <= fam.dtValido.resfriamento : -amb.dT <= fam.dtValido.aquecimento);
-    if (gp && res.afastada) {
+    if (amb.isotermico) {
+      // v3.6.0 (V4): ar à temperatura do ambiente; nenhum ramo de resfriamento ou de aquecimento se aplica
+      var obsIso = 'Isotérmico (ΔT = 0): sem jato frio a descolar do forro nem a cair na zona ocupada.';
+      if (gp && res.afastada) vs.push(V.item({ id: 'dt', criterio: 'Queda do jato frio sem forro: desvio y ≤ H1 (o eixo do jato não entra na zona ocupada)', valor: 0, valorTxt: '0 °C (isotérmico)', limiteTxt: '—', tipo: 'info', situacao: 'atende', fonte: D.dados.trox.desvioY.fonte, obs: obsIso }));
+      else if (gp) vs.push(V.item({ id: 'dt', criterio: 'ΔT de insuflamento ≤ ΔtZ máx (o jato frio não descola do forro)', valor: 0, valorTxt: '0 °C (isotérmico)', limiteTxt: '—', tipo: 'info', situacao: 'atende', fonte: 'TROX C1-006, p. 4', obs: obsIso }));
+      else vs.push(V.item({ id: 'dt', criterio: 'ΔT dentro da validade do catálogo TROX', valor: 0, valorTxt: '0 °C (isotérmico)', limiteTxt: fam.dtValido ? '−' + fam.dtValido.resfriamento + ' a +' + fam.dtValido.aquecimento + ' °C (Δtz)' : '—', tipo: 'info', situacao: 'atende', fonte: ai ? ai.fonte : 'TROX C2-005, p. 2 a 3', obs: obsIso }));
+    } else if (gp && res.afastada) {
       // A3: sem forro, o ΔtZ máx não se aplica (diagrama "com entrada pelo teto"); a queda do jato frio sai do nomograma do desvio y
       // (C1-006, p. 4, "montagem sem entrada pelo teto"), na distância min(alcance corrigido, L) de cada direção; reprova se y > H1
       // (o eixo do jato, na altura de instalação, desce abaixo do topo da zona ocupada)
@@ -4261,7 +4307,7 @@ window.HVAC = window.HVAC || {};
     ctx.posicoes = function (n) { if (!ctx.cache[n]) ctx.cache[n] = RT.posicionar(n, sup, amb, posicao, c, ctx.cand); return ctx.cache[n]; };
     var nDif = sup ? sup.n : 0;
     ctx.nDif = nDif;
-    ctx.nMinDif = nDif ? Math.ceil(nDif / c.retorno.difusoresPorGrelha) : 1;
+    ctx.nMinDif = nDif ? Math.ceil(nDif / c.retorno.difusoresPorGrelha) : (amb.Q > 0 ? 1 : 0);   // só exaustão (v3.6.0): ⌈0/k⌉ = 0; o máx(1; …) garante uma grelha
     ctx.nMinArea = c.retorno.areaMaxPorGrelha > 0 ? Math.ceil(amb.area / c.retorno.areaMaxPorGrelha) : 1;
     ctx.nMinRegra = Math.max(1, ctx.nMinDif, ctx.nMinArea);
     ctx.nMin = Math.min(ctx.nMinRegra, c.retorno.maxPecas); // acima do máximo configurado: alerta, não reprovação em massa
@@ -4273,8 +4319,10 @@ window.HVAC = window.HVAC || {};
     var r = completo ? new Rastro() : new RastroLeve();
     var base = D.dados.trox.grelhasRetorno, n = cand.n, Qp = amb.Qret / n, c = cfg().retorno;
     var HL = cand.chave.split('x'), H = +HL[0], L = +HL[1];
-    var res = { cand: cand, n: n, rastro: r, verifs: [], Qp: Qp, H: H, L: L };
-    r.passo({ grupo: 'produto', titulo: 'Vazão por grelha', formula: 'Q_p = Q_r / n', subst: 'Q_p = ' + F.num(amb.Qret, 0) + ' / ' + n, valor: Qp, unidade: 'm³/h', casas: 0, fonte: 'Arranjo de retorno com ' + n + ' grelha(s)' });
+    // v3.6.0 (V7–V9): exaustão pelas mesmas grelhas e tabelas do retorno; muda só o nome; sem insuflamento, sem Ez
+    var exa = amb.papelSaida === 'exaustao', nomeSai = exa ? 'exaustão' : 'retorno', semIns = !(amb.Q > 0);
+    var res = { cand: cand, n: n, rastro: r, verifs: [], Qp: Qp, H: H, L: L, papel: exa ? 'exaustao' : 'retorno' };
+    r.passo({ grupo: 'produto', titulo: 'Vazão por grelha', formula: exa ? 'Q_p = Q_e / n' : 'Q_p = Q_r / n', subst: 'Q_p = ' + F.num(amb.Qret, 0) + ' / ' + n, valor: Qp, unidade: 'm³/h', casas: 0, fonte: 'Arranjo de ' + nomeSai + ' com ' + n + ' grelha(s)' });
     var t = T.grelha(cand.familia, cand.chave, Qp, r);
     if (!t) return null;
     res.dp = t.dp; res.ln = t.ln; res.fonte = t.fonte;
@@ -4287,7 +4335,7 @@ window.HVAC = window.HVAC || {};
     var dist = ctx.altoNivel ? Math.max(0.7, amb.Hinst - cfg().alturaOuvido) : 1.0;
     r.passo({ grupo: 'acustica', titulo: 'Distância da grelha ao ouvinte', formula: '—', subst: 'r = ' + F.num(dist, 2) + ' m (' + faixa.nome + ')', valor: dist, unidade: 'm', casas: 2, fonte: 'Posição da grelha' });
     var At = D.motor.acustica.atenuacao(dist, amb.volume, e.crit.tratamento || 'normal', r);
-    res.lp = D.motor.acustica.pressaoAmbiente(res.ln, n, At, r, 'retorno');
+    res.lp = D.motor.acustica.pressaoAmbiente(res.ln, n, At, r, exa ? 'exaustão' : 'retorno');
     // insuflamento e retorno soam ao mesmo tempo: o nível do ambiente é a soma das duas parcelas
     res.lpSup = ctx.sup && ctx.sup.lp != null && !isNaN(ctx.sup.lp) ? ctx.sup.lp : null;
     res.lpTotal = res.lpSup === null ? null : D.motor.acustica.somaNiveis(res.lpSup, res.lp, r);
@@ -4299,17 +4347,17 @@ window.HVAC = window.HVAC || {};
     res.nMin = ctx.nMin; res.nRecMax = ctx.nRecMax; res.dMax = c.distMaxDifusor; res.vReprova = c.vJatoReprova;
     res.areaPorGrelha = amb.area / n;
     res.modularPenal = !!(e.retorno.modular && c.modularPreferidos.indexOf(cand.chave) < 0);
-    r.passo({ grupo: 'produto', titulo: 'Número mínimo de grelhas (distribuição do retorno)', formula: 'n_mín = máx(1; ⌈n_dif / ' + c.difusoresPorGrelha + '⌉; ⌈A / ' + c.areaMaxPorGrelha + ' m²⌉)', subst: 'n_mín = máx(1; ⌈' + ctx.nDif + '/' + c.difusoresPorGrelha + '⌉ = ' + ctx.nMinDif + '; ⌈' + F.num(amb.area, 0) + '/' + c.areaMaxPorGrelha + '⌉ = ' + ctx.nMinArea + ')', valor: ctx.nMin, unidade: 'grelhas', casas: 0, fonte: 'Regra de projeto; NBR 16401-1, p. 22, l. 19' });
-    r.passo({ grupo: 'produto', titulo: 'Posição das grelhas', formula: 'pontos de menor velocidade de jato, distribuídos pelos grupos de difusores', subst: res.pos.map(function (p, i) { return 'R' + (i + 1) + ' (' + F.num(p.x, 2) + '; ' + F.num(p.y, 2) + ')'; }).join('; ') + (posManual ? ' — ajustadas manualmente' : ''), valor: null, fonte: 'ASHRAE Fundamentals 2021, p. 20.5; NBR 16401-1, p. 22, l. 19' });
+    r.passo({ grupo: 'produto', titulo: 'Número mínimo de grelhas (distribuição do ' + (exa ? 'ar de exaustão' : 'retorno') + ')', formula: 'n_mín = máx(1; ⌈n_dif / ' + c.difusoresPorGrelha + '⌉; ⌈A / ' + c.areaMaxPorGrelha + ' m²⌉)', subst: 'n_mín = máx(1; ⌈' + ctx.nDif + '/' + c.difusoresPorGrelha + '⌉ = ' + ctx.nMinDif + '; ⌈' + F.num(amb.area, 0) + '/' + c.areaMaxPorGrelha + '⌉ = ' + ctx.nMinArea + ')', valor: ctx.nMin, unidade: 'grelhas', casas: 0, fonte: 'Regra de projeto; NBR 16401-1, p. 22, l. 19' });
+    r.passo({ grupo: 'produto', titulo: 'Posição das grelhas', formula: semIns ? 'distribuídas pela área do ambiente (sem insuflamento)' : 'pontos de menor velocidade de jato, distribuídos pelos grupos de difusores', subst: res.pos.map(function (p, i) { return (exa ? 'E' : 'R') + (i + 1) + ' (' + F.num(p.x, 2) + '; ' + F.num(p.y, 2) + ')'; }).join('; ') + (posManual ? ' — ajustadas manualmente' : ''), valor: null, fonte: 'ASHRAE Fundamentals 2021, p. 20.5; NBR 16401-1, p. 22, l. 19' });
     if (m.maxDist != null) r.passo({ grupo: 'produto', titulo: 'Difusor mais afastado da grelha mais próxima', formula: 'máx_i mín_j dist(difusor_i, grelha_j)', subst: 'd_máx = ' + F.num(m.maxDist, 2) + ' m; difusores por grelha: ' + m.grupos.join(' / '), valor: m.maxDist, unidade: 'm', casas: 2, fonte: 'Regra de projeto' });
     if (ctx.altoNivel && ctx.sup) r.passo({ grupo: 'produto', titulo: 'Velocidade do jato de insuflamento na posição da grelha (pior caso)', formula: 'v = v_t · X_vt / dist  (Eq. 4, por setor de descarga)', subst: 'v_jato = ' + F.num(m.vJato, 3) + ' m/s' + (m.iPior >= 0 ? ' (grelha R' + (m.iPior + 1) + ')' : ''), valor: m.vJato, unidade: 'm/s', casas: 2, fonte: 'ASHRAE Fundamentals 2021, p. 20.5, l. 24; NBR 16401-1, p. 22, l. 19' });
-    var ezRes = N.ez({ aquecimento: amb.dT < 0, dT: Math.abs(amb.dT), retornoAlto: ctx.altoNivel, v14: ctx.sup ? ctx.sup.v14 : null }, r);
+    var ezRes = semIns ? null : N.ez({ aquecimento: amb.dT < 0, dT: Math.abs(amb.dT), retornoAlto: ctx.altoNivel, v14: ctx.sup ? ctx.sup.v14 : null }, r);
     res.ez = ezRes;
 
     // verificações
     var vs = res.verifs, lim = limiteAcustico(e);
-    vs.push(V.item({ id: 'acustica', criterio: 'Nível sonoro do retorno no ambiente (' + lim.rotulo + ')', valor: res.lp, limite: e.crit.dbaMax, tipo: 'max', casas: 1, unidade: 'dB(A)', fonte: lim.fonte + '; TROX C2-005, p. 5' }));
-    if (res.lpTotal !== null) vs.push(V.item({ id: 'acusticaTotal', criterio: 'Nível sonoro somado de insuflamento e retorno (' + lim.rotulo + ')', valor: res.lpTotal, limite: e.crit.dbaMax, tipo: 'max', casas: 1, unidade: 'dB(A)', fonte: lim.fonte + '; soma logarítmica', obs: 'Insuflamento ' + F.num(res.lpSup, 1) + ' + retorno ' + F.num(res.lp, 1) + ' dB(A); cada parcela no ponto mais desfavorável (ouvinte sob o terminal), a favor da segurança' }));
+    vs.push(V.item({ id: 'acustica', criterio: 'Nível sonoro ' + (exa ? 'da exaustão' : 'do retorno') + ' no ambiente (' + lim.rotulo + ')', valor: res.lp, limite: e.crit.dbaMax, tipo: 'max', casas: 1, unidade: 'dB(A)', fonte: lim.fonte + '; TROX C2-005, p. 5' }));
+    if (res.lpTotal !== null) vs.push(V.item({ id: 'acusticaTotal', criterio: 'Nível sonoro somado de insuflamento e ' + nomeSai + ' (' + lim.rotulo + ')', valor: res.lpTotal, limite: e.crit.dbaMax, tipo: 'max', casas: 1, unidade: 'dB(A)', fonte: lim.fonte + '; soma logarítmica', obs: 'Insuflamento ' + F.num(res.lpSup, 1) + ' + ' + nomeSai + ' ' + F.num(res.lp, 1) + ' dB(A); cada parcela no ponto mais desfavorável (ouvinte sob o terminal), a favor da segurança' }));
     vs.push(V.item({ id: 'dp', criterio: 'Perda de carga', valor: res.dp, limite: e.crit.dpMax, tipo: 'max', casas: 2, unidade: 'mmCA', fonte: 'Limite de projeto' }));
     if (faixa.min !== undefined) vs.push(V.item({ id: 'face', criterio: 'Velocidade de face recomendada — ' + faixa.nome, valor: res.vFace, min: faixa.min, max: faixa.max, tipo: 'faixa', casas: 2, unidade: 'm/s', falhaAcima: 'reprova', falhaAbaixo: 'alerta', fonte: D.dados.normas.bocas.retornoFace.fonteCurta }));
     else vs.push(V.item({ id: 'face', criterio: 'Velocidade de face recomendada — ' + faixa.nome, valor: res.vFace, limite: faixa.max, tipo: 'max', casas: 2, unidade: 'm/s', falha: 'alerta', fonte: D.dados.normas.bocas.retornoFace.fonteCurta, obs: faixa.nota }));
@@ -4318,7 +4366,7 @@ window.HVAC = window.HVAC || {};
     if (m.maxDist != null) vs.push(V.item({ id: 'distMax', criterio: 'Difusor mais afastado a ≤ ' + F.num(c.distMaxDifusor, 0) + ' m da grelha mais próxima', valor: m.maxDist, limite: c.distMaxDifusor, tipo: 'max', casas: 2, unidade: 'm', falha: 'alerta', fonte: 'Regra de projeto' }));
     if (n > 1.5 * ctx.nRecMax) vs.push(V.item({ id: 'fragment', criterio: 'Número de grelhas excessivo (fragmentação do retorno)', valor: n, valorTxt: n + ' grelhas', limiteTxt: '≤ ' + Math.floor(1.5 * ctx.nRecMax), tipo: 'info', situacao: 'alerta', fonte: 'Regra de projeto' }));
     if (ctx.altoNivel && ctx.sup) vs.push(V.item({ id: 'curto', criterio: 'Grelha fora do alcance dos jatos de insuflamento (curto-circuito)', valor: m.vJato, valorTxt: 'jato na grelha ' + F.num(m.vJato, 2) + ' m/s', limiteTxt: '≤ 0,25 m/s (fim do jato); > 0,5 m/s reprova (critério do app)', tipo: 'info', situacao: m.vJato > c.vJatoReprova ? 'reprova' : (m.vJato > c.vJatoAlerta ? 'alerta' : 'atende'), fonte: 'NBR 16401-1, p. 22, l. 19; ASHRAE Fundamentals 2021, p. 20.5' }));
-    vs.push(V.item({ id: 'ez', criterio: 'Eficácia da distribuição de ar Ez com este retorno', valor: ezRes.valor, valorTxt: 'Ez = ' + F.num(ezRes.valor, 1), limiteTxt: '1,0', tipo: 'info', situacao: ezRes.valor >= 1 ? 'atende' : 'alerta', fonte: ezRes.fonte, obs: ezRes.texto + (amb.dT < 0 && ctx.altoNivel && Math.abs(amb.dT) >= 8 ? ' — recomenda-se retorno baixo no aquecimento' : '') }));
+    if (ezRes) vs.push(V.item({ id: 'ez', criterio: 'Eficácia da distribuição de ar Ez com ' + (exa ? 'esta exaustão' : 'este retorno'), valor: ezRes.valor, valorTxt: 'Ez = ' + F.num(ezRes.valor, 1), limiteTxt: '1,0', tipo: 'info', situacao: ezRes.valor >= 1 ? 'atende' : 'alerta', fonte: ezRes.fonte, obs: ezRes.texto + (amb.dT < 0 && ctx.altoNivel && Math.abs(amb.dT) >= 8 ? ' — recomenda-se retorno baixo no aquecimento' : '') }));
     var prop = L / H;
     vs.push(V.item({ id: 'formato', criterio: 'Proporção L/H da grelha ≤ ' + c.proporcaoMax, valor: prop, limite: c.proporcaoMax, tipo: 'max', casas: 1, unidade: '', falha: 'alerta', fonte: 'Prática de projeto' }));
     if (e.retorno.hMax && H > e.retorno.hMax) vs.push(V.item({ id: 'hmax', criterio: 'Altura nominal H ≤ máximo disponível', valor: H, limite: e.retorno.hMax, tipo: 'max', casas: 0, unidade: 'mm', fonte: 'Restrição de projeto' }));
@@ -4331,8 +4379,7 @@ window.HVAC = window.HVAC || {};
     res.indice = D.motor.indice.retorno(res, ctxI, vs, r);
     res.selo = res.indice.selo;
     var famNome = base.familias[cand.familia].nome.split(' — ')[0];
-    if (cand.familia === 'AT_VAT') famNome = H === 75 ? 'VAT' : 'AT / VAT';
-    res.modelo = famNome; res.dimensao = H + ' × ' + L + ' mm (H × L)';
+    if (cand.familia === 'AT_VAT') famNome = H === 75 ? 'VAT' : 'AT / VAT';    res.modelo = famNome; res.dimensao = H + ' × ' + L + ' mm (H × L)';
     res.titulo = famNome + ' ' + H + '×' + L + ' — ' + n + ' grelha(s)';
     return res;
   }
@@ -4368,7 +4415,8 @@ window.HVAC = window.HVAC || {};
     if (D.motor.avisos.bloqueia(av)) return { bloqueado: true, avisos: av, amb: null, rastroAmb: rAmb, insuflamento: [], totalInsuflamento: 0, retorno: [], totalRetorno: 0, ctxRet: null };
     var amb = D.motor.ar.ambiente(e, rAmb);
     var sup = [];
-    candidatosInsuflamento(e, amb).forEach(function (c) { var s = avaliarInsuflamento(c, e, amb, false); if (s) sup.push(s); });
+    // v3.6.0 (V6): só exaustão (insuflamento 0, no modo ventilação) não gera difusor
+    if (amb.Q > 0) candidatosInsuflamento(e, amb).forEach(function (c) { var s = avaliarInsuflamento(c, e, amb, false); if (s) sup.push(s); });
     D.motor.indice.ordenar(sup, 'insuflamento');
     var topSup = sup.slice(0, cfg().alternativas).map(function (s) { return avaliarInsuflamento(s.cand, e, amb, true); });
     var rr = selecionarRetorno(e, amb, topSup[0] || null);
@@ -4412,13 +4460,27 @@ window.HVAC = window.HVAC || {};
   function paParaMmca(pa) { return vazio(pa) ? NaN : Math.round(pa / PA_POR_MMCA * 1e9) / 1e9; }
   function mmcaParaPa(mm) { return vazio(mm) ? null : Math.round(mm * PA_POR_MMCA * 1e6) / 1e6; }
 
+  /* Bloco `ar` da entrada. As chaves do modo "Vazões da ventilação" (v3.6.0: Qsai, papelSaida, isotermico) só existem nesse
+   * modo: os ambientes dos outros modos ficam iguais aos da v3.5.0 (arquivo e memória). */
+  function arEntrada(a, p) {
+    var o = { modo: a.modo, Q: nn(a.Q), qs: nn(a.qs), dT: nn(a.dT), to: vazio(a.to) ? toPadrao(a.dT) : a.to, ur: vazio(a.ur) ? UR_PADRAO : a.ur, z: nn(p.altitude) || 0, retornoPct: nn(a.retornoPct) };
+    // papelSaida e isotermico vão como estão: a abertura do arquivo (projeto.js) valida e põe a linha no relatório; o motor lê só 'exaustao' e true
+    if (a.modo === 'ventilacao') { o.Qsai = nn(a.Qsai); o.papelSaida = a.papelSaida; o.isotermico = a.isotermico; }
+    return o;
+  }
+  function arAmbiente(a, to, ur) {
+    var o = { modo: a.modo, Q: nulo(a.Q), qs: nulo(a.qs), dT: nulo(a.dT), to: to, ur: ur, retornoPct: nulo(a.retornoPct) };
+    if (a.modo === 'ventilacao') { o.Qsai = nulo(a.Qsai); o.papelSaida = a.papelSaida === 'exaustao' ? 'exaustao' : 'retorno'; o.isotermico = a.isotermico === true; }
+    return o;
+  }
+
   function ambienteParaEntrada(amb, projeto) {
     var g = amb.geo || {}, a = amb.ar || {}, c = amb.crit || {}, r = amb.retorno || {}, p = projeto || {};
     return {
       projeto: { nome: p.nome || '', ambiente: amb.nome || '', responsavel: p.responsavel || '' },
       geo: { C: nn(g.C), W: nn(g.W), H: nn(g.H), Hinst: nn(g.Hinst), zo: vazio(g.zo) ? alturaPostura(g.postura) : g.zo, postura: g.postura, montagem: g.montagem, montagemGrelha: g.montagemGrelha,
         paredesExternas: mapa(g.paredesExternas, ['x0', 'xC', 'y0', 'yW']) },
-      ar: { modo: a.modo, Q: nn(a.Q), qs: nn(a.qs), dT: nn(a.dT), to: vazio(a.to) ? toPadrao(a.dT) : a.to, ur: vazio(a.ur) ? UR_PADRAO : a.ur, z: nn(p.altitude) || 0, retornoPct: nn(a.retornoPct) },
+      ar: arEntrada(a, p),
       crit: { aplicacao: c.aplicacao, dbaMax: vazio(c.dbaMax) ? limiteRuido(c.aplicacao) : c.dbaMax, dpMax: paParaMmca(c.dpMaxPa), vzoModo: c.vzoModo, vzoMax: nn(c.vzoMax),
         controleLocal: c.controleLocal, registro: c.registro, regulagemRamal: c.regulagemRamal, entradaAI: c.entradaAI, acessorio: c.acessorio, tratamento: c.tratamento },
       retorno: { posicao: r.posicao, tipo: r.tipo, hMax: nulo(r.hMax), lMax: nulo(r.lMax), modular: r.modular, familias: mapa(r.familias, FAMILIAS_RET) },
@@ -4439,7 +4501,7 @@ window.HVAC = window.HVAC || {};
     return {
       nome: (e.projeto && e.projeto.ambiente) || '',
       geo: { C: nulo(g.C), W: nulo(g.W), H: nulo(g.H), Hinst: nulo(g.Hinst), postura: g.postura, zo: zo, montagem: g.montagem, montagemGrelha: g.montagemGrelha, paredesExternas: mapa(g.paredesExternas, ['x0', 'xC', 'y0', 'yW']) },
-      ar: { modo: a.modo, Q: nulo(a.Q), qs: nulo(a.qs), dT: nulo(a.dT), to: to, ur: ur, retornoPct: nulo(a.retornoPct) },
+      ar: arAmbiente(a, to, ur),
       crit: { aplicacao: c.aplicacao, dbaMax: dba, dpMaxPa: pa, vzoModo: c.vzoModo, vzoMax: nulo(c.vzoMax), controleLocal: c.controleLocal, registro: c.registro, regulagemRamal: c.regulagemRamal,
         entradaAI: c.entradaAI, acessorio: c.acessorio, tratamento: c.tratamento },
       retorno: { posicao: r.posicao, tipo: r.tipo, hMax: nulo(r.hMax), lMax: nulo(r.lMax), modular: r.modular, familias: mapa(r.familias, FAMILIAS_RET) },
@@ -4450,7 +4512,7 @@ window.HVAC = window.HVAC || {};
 
   // Rótulo de cada campo de `e`, para listar o que falta preencher
   var ROTULO = { 'geo.C': 'Comprimento', 'geo.W': 'Largura', 'geo.H': 'Pé-direito', 'geo.Hinst': 'Altura de instalação', 'geo.zo': 'Zona ocupada', 'ar.Q': 'Vazão total de insuflamento',
-    'ar.qs': 'Calor sensível do ambiente', 'ar.dT': 'ΔT de insuflamento', 'ar.to': 'Temperatura operativa de projeto', 'ar.ur': 'Umidade relativa do ambiente', 'ar.retornoPct': 'Vazão de retorno',
+    'ar.qs': 'Calor sensível do ambiente', 'ar.dT': 'ΔT de insuflamento', 'ar.to': 'Temperatura operativa de projeto', 'ar.ur': 'Umidade relativa do ambiente', 'ar.retornoPct': 'Vazão de retorno', 'ar.Qsai': 'Vazão de retorno ou de exaustão',
     'crit.dbaMax': 'Limite de ruído no ambiente', 'crit.dpMax': 'Perda de carga máxima no difusor', 'crit.vzoOutro': 'Limite de velocidade do ar na zona ocupada', 'familias.ADLQ': 'Famílias de insuflamento' };
 
   // As mesmas regras e mensagens de entradas.validar (tela da v2.1.3)
@@ -4461,15 +4523,21 @@ window.HVAC = window.HVAC || {};
     req('geo.H', e.geo.H > 0, 'Informe o pé-direito.');
     req('geo.Hinst', e.geo.Hinst > 0 && e.geo.Hinst <= e.geo.H + 1e-9, 'Deve ser maior que zero e não maior que o pé-direito.');
     req('geo.zo', e.geo.zo > 0 && e.geo.zo < e.geo.Hinst, 'Deve ser menor que a altura de instalação.');
+    var vent = e.ar.modo === 'ventilacao', iso = vent && e.ar.isotermico === true, soSaida = vent && !(e.ar.Q > 0);
     if (e.ar.modo === 'carga') { req('ar.qs', e.ar.qs > 0, 'Informe o calor sensível do ambiente.'); }
+    else if (vent) {
+      // v3.6.0: insuflamento pode ser 0 (só exaustão); a saída é em m³/h
+      req('ar.Q', e.ar.Q >= 0, 'Informe a vazão.');
+      req('ar.Qsai', e.ar.Qsai >= 0 || (e.ar.Q > 0 && isNaN(e.ar.Qsai)), 'Informe a vazão de retorno ou de exaustão (m³/h).');
+    }
     else req('ar.Q', e.ar.Q > 0, 'Informe a vazão.');
-    req('ar.dT', !isNaN(e.ar.dT) && e.ar.dT !== 0, 'Informe o ΔT (diferente de zero).');
+    if (!iso && !soSaida) req('ar.dT', !isNaN(e.ar.dT) && e.ar.dT !== 0, 'Informe o ΔT (diferente de zero).');
     req('ar.to', !isNaN(e.ar.to) && e.ar.to >= 15 && e.ar.to <= 35, 'Informe a temperatura operativa (15 a 35 °C).');
     req('ar.ur', e.ar.ur > 0 && e.ar.ur <= 100, 'Informe a umidade relativa (1 a 100 %).');
-    req('ar.retornoPct', e.ar.retornoPct >= 0 && e.ar.retornoPct <= 100, 'Entre 0 e 100 %.');
+    if (!vent) req('ar.retornoPct', e.ar.retornoPct >= 0 && e.ar.retornoPct <= 100, 'Entre 0 e 100 %.');
     req('crit.dbaMax', e.crit.dbaMax > 0, 'Informe o limite em dB(A).'); req('crit.dpMax', e.crit.dpMax > 0, 'Informe a Δp máxima.');
     if (e.crit.vzoModo === 'projeto') req('crit.vzoOutro', e.crit.vzoMax > 0, 'Informe a velocidade limite.');
-    var fam = e.familias; req('familias.ADLQ', fam.ADLQ || fam.ADLR || fam.ADE1 || fam.ADE2 || fam.FD || fam.VDW || fam.VD || fam.ATVAT || fam.AHAF,'Marque pelo menos uma família de insuflamento.');
+    var fam = e.familias; if (!soSaida) req('familias.ADLQ', fam.ADLQ || fam.ADLR || fam.ADE1 || fam.ADE2 || fam.FD || fam.VDW || fam.VD || fam.ATVAT || fam.AHAF,'Marque pelo menos uma família de insuflamento.');
     return erros;
   }
 
@@ -4608,9 +4676,10 @@ window.HVAC = window.HVAC || {};
     var res = r.res, primeira = r.sup;
     var v = { r: r, primeira: primeira, sup: primeira, ret: r.ret, retLista: res ? res.retorno : [], totalRetorno: res ? res.totalRetorno : 0, ctxRet: res ? res.ctxRet : null,
       adotada: false, ajustada: false, retAdotada: false, retAjustada: false, avisos: [] };
-    if (res && primeira) {
+    // v3.6.0: no modo ventilação sem insuflamento (só exaustão) não há 1ª opção de difusor, mas a grelha adotada e as posições valem
+    if (res && (primeira || r.e.ar.modo === 'ventilacao')) {
       comConfig(projeto);
-      var e = r.e, a = res.amb, m = validarIns(amb.manual), mr = validarRet(amb.manualRet);
+      var e = r.e, a = res.amb, m = primeira ? validarIns(amb.manual) : null, mr = validarRet(amb.manualRet);
       if (m && m.seguir && sIns(chaveIns(primeira.cand)) !== sIns(m)) {
         v.avisos.push('As posições ajustadas valiam para outra 1ª opção (' + rotuloIns(m) + '): valem as posições do arranjo atual.');
         m = null; mr = null;
@@ -4823,7 +4892,7 @@ window.HVAC = window.HVAC || {};
  *   pendencias(E)        → [{ nivel, amb, onde, texto, detalhes, rota }]   nivel: 'impede' | 'conferir' | 'info'
  *                          Ordem: por nível (impede, conferir, info); dentro do nível, o projeto primeiro e depois os ambientes na ordem do projeto.
  *   configAlteradas(p)   → [{ cam, valor, padrao }]   folhas numéricas de projeto.config diferentes de D.motor.configPadrao()
- *   quantitativo(E)      → { ins: [{ item, n, ambientes }], ret: [...], totalIns, totalRet, semSolucao }
+ *   quantitativo(E)      → { ins: [{ item, n, ambientes }], ret: [...], exa: [...], totalIns, totalRet, totalExa, semSolucao }   (exa: v3.6.0)
  * E = { projeto, ambientes[] }. Especificação: sessão T3, seção 1.1. */
 (function (D) {
   'use strict';
@@ -4835,6 +4904,11 @@ window.HVAC = window.HVAC || {};
   function curto(s) { return String(s.modelo).split(' — ')[0] + ' ' + s.dimensao; }              // o rótulo de AD.rotuloSolucao sem a quantidade
   function itemRet(rt) { return rt.modelo + ' ' + rt.H + '×' + rt.L; }
   function rotuloRet(rt) { return rt.n + ' × ' + itemRet(rt); }
+  // v3.6.0: modo ventilação sem insuflamento (só exaustão) e o nome da saída de ar (retorno, masculino; exaustão, feminino)
+  function soExaustao(r) { return !!(r && r.res && r.e.ar.modo === 'ventilacao' && !(r.res.amb.Q > 0)); }
+  function sai(r) {
+    return r && r.res && r.res.amb.papelSaida === 'exaustao' ? { Cap: 'Exaustão', o: 'a' } : { Cap: 'Retorno', o: 'o' };
+  }
 
   // ---------------------------------------------------------------- configurações alteradas
   function configAlteradas(projeto) {
@@ -4876,30 +4950,30 @@ window.HVAC = window.HVAC || {};
     }
 
     (E.ambientes || []).forEach(function (amb, i) {
-      var onde = nomeDe(amb), v = ESC.resolver(amb, projeto), r = v.r, s = v.sup, rt = v.ret, a = r.res ? r.res.amb : null;
+      var onde = nomeDe(amb), v = ESC.resolver(amb, projeto), r = v.r, s = v.sup, rt = v.ret, a = r.res ? r.res.amb : null, soE = soExaustao(r), X = sai(r);
       var rotaAmb = '#/ambiente/' + i, rotaSel = '#/selecao/' + i, erros = Object.keys(r.erros);
 
       if (erros.length) {
         add('impede', i, onde, 'Para selecionar, falta: ' + erros.map(function (k) { return AD.ROTULO[k] || k; }).join(', '), [], rotaAmb);
-      } else if (!s) {
+      } else if (!s && !soE) {
         add('impede', i, onde, 'Nenhuma combinação das famílias marcadas atende ao domínio publicado nos catálogos para esta vazão e geometria.', [], rotaAmb);
       }
 
-      if (s) {
-        if (s.selo === 'reprovado') add('conferir', i, onde, 'Insuflamento reprovado: ' + reprovados(s).join('; '), [], rotaSel);
+      if (s || soE) {
+        if (s && s.selo === 'reprovado') add('conferir', i, onde, 'Insuflamento reprovado: ' + reprovados(s).join('; '), [], rotaSel);
         if (r.res && r.res.semAprovada) add('conferir', i, onde, 'Nenhuma alternativa de insuflamento gerada é aprovada.', [r.res.semAprovada.texto], rotaSel);
-        if (s.selo === 'ressalva') add('conferir', i, onde, 'Insuflamento aprovado com ressalva', ressalvasDe(s.rastro), rotaSel);
-        if (s.selo === 'aprovado' && alertasDe(s).length) add('conferir', i, onde, 'Insuflamento aprovado, com alerta', alertasDe(s), rotaSel);
-        if (a && a.Qret > 0 && !rt) add('conferir', i, onde, 'Retorno sem solução dentro do catálogo.', [], rotaSel);
-        if (rt && rt.selo === 'reprovado') add('conferir', i, onde, 'Retorno reprovado: ' + reprovados(rt).join('; '), [], rotaSel);
-        if (rt && rt.selo === 'ressalva') add('conferir', i, onde, 'Retorno aprovado com ressalva', ressalvasDe(rt.rastro), rotaSel);
-        if (rt && rt.selo === 'aprovado' && alertasDe(rt).length) add('conferir', i, onde, 'Retorno aprovado, com alerta', alertasDe(rt), rotaSel);
+        if (s && s.selo === 'ressalva') add('conferir', i, onde, 'Insuflamento aprovado com ressalva', ressalvasDe(s.rastro), rotaSel);
+        if (s && s.selo === 'aprovado' && alertasDe(s).length) add('conferir', i, onde, 'Insuflamento aprovado, com alerta', alertasDe(s), rotaSel);
+        if (a && a.Qret > 0 && !rt) add(soE ? 'impede' : 'conferir', i, onde, X.Cap + ' sem solução dentro do catálogo.', [], soE ? rotaAmb : rotaSel);
+        if (rt && rt.selo === 'reprovado') add('conferir', i, onde, X.Cap + ' reprovad' + X.o + ': ' + reprovados(rt).join('; '), [], rotaSel);
+        if (rt && rt.selo === 'ressalva') add('conferir', i, onde, X.Cap + ' aprovad' + X.o + ' com ressalva', ressalvasDe(rt.rastro), rotaSel);
+        if (rt && rt.selo === 'aprovado' && alertasDe(rt).length) add('conferir', i, onde, X.Cap + ' aprovad' + X.o + ', com alerta', alertasDe(rt), rotaSel);
       }
       r.avisos.filter(function (x) { return x.nivel !== 'erro'; }).forEach(function (x) { add('conferir', i, onde, 'Aviso de entrada: ' + x.texto, [], rotaAmb); });
       v.avisos.forEach(function (t) { add('conferir', i, onde, t, [], rotaSel); });
 
       if (s && v.adotada) add('info', i, onde, 'Insuflamento adotado por você: ' + AD.rotuloSolucao(s) + ' (a 1ª opção do app é ' + AD.rotuloSolucao(v.primeira) + ')', [], rotaSel);
-      if (rt && v.retAdotada) add('info', i, onde, 'Retorno adotado por você: ' + rotuloRet(rt), [], rotaSel);
+      if (rt && v.retAdotada) add('info', i, onde, X.Cap + ' adotad' + X.o + ' por você: ' + rotuloRet(rt), [], rotaSel);
       if (v.ajustada) add('info', i, onde, 'Posições dos difusores ajustadas na planta', [], rotaSel);
       if (v.retAjustada) add('info', i, onde, 'Posições das grelhas ajustadas na planta', [], rotaSel);
       // "Dado interpretado do catálogo na solução adotada": o motor não guarda lista própria desses dados no rastro
@@ -4916,21 +4990,22 @@ window.HVAC = window.HVAC || {};
 
   // ---------------------------------------------------------------- quantitativo
   function quantitativo(E) {
-    var ins = {}, ret = {}, semSolucao = [], totalIns = 0, totalRet = 0;
+    var ins = {}, ret = {}, exa = {}, semSolucao = [], totalIns = 0, totalRet = 0, totalExa = 0;
     function soma(mapa, item, n, nome) {
       var x = mapa[item] || (mapa[item] = { item: item, n: 0, ambientes: [] });
       x.n += n; x.ambientes.push(nome);
     }
     (E.ambientes || []).forEach(function (amb) {
-      var v = ESC.resolver(amb, E.projeto), s = v.sup, rt = v.ret, nome = nomeDe(amb);
-      if (!s) { semSolucao.push(nome); return; }
-      soma(ins, curto(s), s.n, nome); totalIns += s.n;
-      if (rt) { soma(ret, itemRet(rt), rt.n, nome); totalRet += rt.n; }
+      var v = ESC.resolver(amb, E.projeto), s = v.sup, rt = v.ret, nome = nomeDe(amb), ehExa = sai(v.r).Cap === 'Exaustão';
+      if (!s && !(soExaustao(v.r) && rt)) { semSolucao.push(nome); return; }
+      if (s) { soma(ins, curto(s), s.n, nome); totalIns += s.n; }
+      if (rt && ehExa) { soma(exa, itemRet(rt), rt.n, nome); totalExa += rt.n; }   // v3.6.0: grelhas de exaustão em grupo próprio
+      else if (rt) { soma(ret, itemRet(rt), rt.n, nome); totalRet += rt.n; }
     });
     function ordenar(mapa) {
       return Object.keys(mapa).sort(function (a, b) { return a < b ? -1 : a > b ? 1 : 0; }).map(function (k) { return mapa[k]; });
     }
-    return { ins: ordenar(ins), ret: ordenar(ret), totalIns: totalIns, totalRet: totalRet, semSolucao: semSolucao };
+    return { ins: ordenar(ins), ret: ordenar(ret), exa: ordenar(exa), totalIns: totalIns, totalRet: totalRet, totalExa: totalExa, semSolucao: semSolucao };
   }
 
   D.util.emissao = { pendencias: pendencias, configAlteradas: configAlteradas, quantitativo: quantitativo };
@@ -4944,6 +5019,8 @@ window.HVAC = window.HVAC || {};
  *     projeto:   { nome, responsavel, revisao, altitude, padroes: { familias, retornoFamilias }, config },
  *     ambientes: [ { nome, geo, ar, crit, retorno, familias, manual, manualRet, areaCT? } ] }
  *   areaCT (opcional): área da carga térmica em m², só dica para sugerir a largura; o motor não a recebe.
+ *   areaVent (opcional, v3.6.0): o mesmo, da importação da ventilação.
+ *   ar.Qsai, ar.papelSaida, ar.isotermico (v3.6.0): só no modo 'ventilacao' (util\adaptador.js, arEntrada).
  *   manual e manualRet: a alternativa adotada e as posições ajustadas, pela identidade da peça e do arranjo (util\escolha.js);
  *   null = segue a 1ª opção do app.
  * abrir(texto ou objeto) nunca lança erro e devolve { ok, projeto, relatorio, versaoOrigem, versaoAppOrigem, motivo }:
@@ -5095,6 +5172,7 @@ window.HVAC = window.HVAC || {};
       var novo = A.entradaParaAmbiente(r3.projeto.entrada, amb);
       novo.nome = nome;
       if (typeof amb.areaCT === 'number' && isFinite(amb.areaCT) && amb.areaCT > 0) novo.areaCT = amb.areaCT;   // dica da importação da carga térmica; inválido: descartado em silêncio
+      if (typeof amb.areaVent === 'number' && isFinite(amb.areaVent) && amb.areaVent > 0) novo.areaVent = amb.areaVent;   // idem, da importação da ventilação (v3.6.0)
       novo.manual = novoIns ? D.util.escolha.validarIns(amb.manual) : r3.projeto.manual;
       novo.manualRet = novoRet ? D.util.escolha.validarRet(amb.manualRet) : r3.projeto.manualRet;
       if (novoIns && !novo.manual) linha(rel, 'substituido', ondeAmb(nome) + ' (planta)', 'Alternativa adotada e posições dos difusores', '(registro ilegível)', '1ª opção do app', 'a escolha gravada no arquivo não pôde ser lida');
@@ -5324,6 +5402,215 @@ window.HVAC = window.HVAC || {};
   }
 
   D.util.importaCT = { importar: importar, texto: texto, larguraSugerida: larguraSugerida, areaDifere: areaDifere, FORMATO_CT: FORMATO_CT, VERSAO_CONHECIDA: VERSAO_CONHECIDA };
+})(window.Difusores);
+
+</script>
+<script>
+/* ==== js/util/importa_vent.js ==== */
+/* Importação das vazões do app de Ventilação (v3.6.0, E3 do plano da ventilação; decisões I1–I13 de 2026-11-23). Sem DOM.
+ *   D.util.importaVent.importar(obj, E) → { ok, ambientes, relatorio, versaoOrigem, motivo }
+ * Lê o arquivo "Exportar vazões" do app de Ventilação (formato 'hvac-ventilacao', versões 1 e 2) e devolve ambientes novos (a partir
+ * de D.util.formato4.novoAmbiente) no modo "Vazões da ventilação": nome, pé-direito, vazão de insuflamento, saída (retorno ou
+ * exaustão, em m³/h) e temperatura do ar insuflado (climatizado ou isotérmico). Comprimento e largura ficam para digitar (a área vai
+ * em amb.areaVent, só como dica para a largura sugerida). Não altera E: quem chama acrescenta os ambientes ao projeto.
+ * Regras:
+ *   - versão 2: Q_exa > 0 → saída "exaustão" com Q_exa; senão "retorno" com Q_ret. Cozinha: a coifa (Q_coifa_m3h) fica fora,
+ *     grelhas só para Q_exa − Q_coifa (I7). climatizado true → ΔT vazio (o aviso pede); false → isotérmico (I6);
+ *   - versão 1 (sem grupo, climatizado, pé-direito nem retorno): Q_exa entra como retorno (T1); "Cozinha profissional" abre com
+ *     saída 0 (I7); pé-direito = volume ÷ área; climatizado com ΔT vazio (I6);
+ *   - ambiente sem nenhuma vazão não entra (I8); pressão, transferências, ar exterior mínimo e situação viram linhas "info" (I9).
+ * Linhas do relatório no formato de formato4.js: { nivel ('info' | 'convertido' | 'substituido'), onde, campo, valorArquivo,
+ * valorAdotado, motivo }. */
+(function (D) {
+  'use strict';
+  var F = D.util.fmt, AD = D.util.adaptador, F4 = D.util.formato4;
+  var FORMATO_VENT = 'hvac-ventilacao', VERSAO_CONHECIDA = 2;
+
+  function ehObj(x) { return x !== null && typeof x === 'object' && !Array.isArray(x); }
+  function vazio(x) { return x === null || x === undefined || x === '' || (typeof x === 'number' && isNaN(x)); }
+  function numero(x) {   // número, ou texto numérico (vírgula ou ponto); senão NaN
+    if (typeof x === 'number') return isFinite(x) ? x : NaN;
+    if (typeof x === 'string') { var n = F.ler(x); return typeof n === 'number' && isFinite(n) ? n : NaN; }
+    return NaN;
+  }
+  function vazao(x) { var n = numero(x); return isFinite(n) && n >= 0 ? n : null; }   // null = ausente, ilegível ou negativa
+  function txt(v) {
+    if (v === undefined) return '(ausente)';
+    if (v === null || v === '') return '(vazio)';
+    if (typeof v === 'number') return String(v).replace('.', ',');
+    if (typeof v === 'string') return v;
+    try { return JSON.stringify(v); } catch (e) { return String(v); }
+  }
+  function m3h(v) { return F.num(v, 0) + ' m³/h'; }
+  function pa(v) { return (v > 0 ? '+' : '') + F.num(v, 1) + ' Pa'; }
+  function recusa(m) { return { ok: false, ambientes: [], relatorio: [], versaoOrigem: 0, motivo: m }; }
+  function linha(rel, nivel, onde, campo, valorArquivo, valorAdotado, motivo) {
+    rel.push({ nivel: nivel, onde: onde, campo: campo, valorArquivo: String(valorArquivo), valorAdotado: String(valorAdotado), motivo: motivo });
+  }
+  // Fonte que a Ventilação gravou para um campo (troca v2, `fontes`), no fim do motivo
+  function fonte(a, campo) {
+    var f = Array.isArray(a.fontes) ? a.fontes.filter(function (x) { return ehObj(x) && x.campo === campo && typeof x.fonte === 'string' && x.fonte; })[0] : null;
+    return f ? ' (fonte na ventilação: ' + f.fonte + (f.conferir === true ? ', CONFERIR' : '') + ')' : '';
+  }
+
+  function importar(obj, E) {
+    try {
+      var MOTIVO_OUTRO = 'Este arquivo não é uma exportação de vazões do app de ventilação.';
+      if (!ehObj(obj) || obj.formato !== FORMATO_VENT || !Array.isArray(obj.ambientes)) return recusa(MOTIVO_OUTRO);
+      var lista = obj.ambientes.filter(ehObj);
+      if (!lista.length) return recusa(MOTIVO_OUTRO);
+      var vf = vazio(obj.versao) ? 1 : Number(obj.versao);
+      if (!(vf >= 1)) return recusa(MOTIVO_OUTRO);
+      var pj = ehObj(obj.projeto) ? obj.projeto : {}, rel = [], novos = [];
+      var existentes = (E && Array.isArray(E.ambientes) ? E.ambientes : []).map(function (a) { return a.nome; });
+      var projetoE = E && E.projeto ? E.projeto : null;
+
+      if (vf > VERSAO_CONHECIDA) linha(rel, 'info', 'Arquivo', 'Formato', 'versão ' + vf, 'versão ' + VERSAO_CONHECIDA,
+        'formato mais novo que o conhecido (' + VERSAO_CONHECIDA + '): lidos só nome, pé-direito, vazões e se o ambiente é climatizado');
+
+      lista.forEach(function (a, idx) {
+        var nome = typeof a.nome === 'string' ? a.nome.trim() : '', usados = existentes.concat(novos.map(function (x) { return x.nome; })), final;
+        if (!nome) nome = 'Ambiente importado ' + (idx + 1);
+        final = nome;
+        if (usados.indexOf(final) >= 0) {
+          final = nome + ' (ventilação)';
+          for (var n = 2; usados.indexOf(final) >= 0; n++) final = nome + ' (ventilação) (' + n + ')';
+        }
+        var onde = 'Ambiente: ' + final;
+
+        // vazões (I5, I7, I8)
+        var v2 = vf >= 2, qi = vazao(a.Q_ins_m3h), qr = vazao(a.Q_ret_m3h), qe = vazao(a.Q_exa_m3h), qc = vazao(a.Q_coifa_m3h);
+        var cozinha = v2 && typeof a.grupo === 'string' ? a.grupo === 'cozinha' : (typeof a.tipo === 'string' && a.tipo.trim() === 'Cozinha profissional');
+        var papel, qs, coifa = null, campoSai, separa = null;
+        if (v2) {
+          papel = qe > 0 ? 'exaustao' : 'retorno'; qs = papel === 'exaustao' ? qe : qr; campoSai = papel === 'exaustao' ? 'Q_exa_m3h' : 'Q_ret_m3h';
+          if (cozinha && qe > 0) { coifa = qc !== null ? Math.min(qc, qe) : qe; qs = qe - coifa; }
+          // revisor D1 (2026-11-23, opção "2º ambiente"): retorno e exaustão no mesmo ambiente → este fica com o retorno; a exaustão
+          // (sem a coifa) vai para um 2º ambiente "Nome (exaustão)", sem insuflamento
+          if (qr > 0 && qe > 0) { separa = qs > 0 ? qs : 0; papel = 'retorno'; qs = qr; campoSai = 'Q_ret_m3h'; }
+        } else {
+          papel = 'retorno'; qs = qe; campoSai = 'Q_exa_m3h';
+          if (cozinha && qe > 0) { coifa = qe; qs = 0; papel = 'exaustao'; }
+        }
+        if (!(qi > 0) && !(qs > 0)) {
+          linha(rel, 'info', onde, 'Ambiente', 'insuflamento ' + (qi === null ? txt(a.Q_ins_m3h) : m3h(qi)) + '; saída ' + (qs === null ? '(vazia)' : m3h(qs)) + (coifa ? '; coifa ' + m3h(coifa) : ''), '(não importado)',
+            coifa ? 'só a coifa tira ar deste ambiente, e a coifa fica fora do Difusores (NBR 14518)' : 'o ambiente não tem vazão de insuflamento nem de saída a distribuir');
+          return;
+        }
+        var amb = F4.novoAmbiente(projetoE, final);
+        if (final !== nome) linha(rel, 'info', onde, 'Nome', nome, final, 'já existe um ambiente com este nome no projeto ou na importação');
+        amb.ar.modo = 'ventilacao'; amb.ar.qs = null; amb.ar.Q = qi > 0 ? qi : 0;
+        amb.ar.Qsai = qs > 0 ? qs : 0; amb.ar.papelSaida = papel;
+
+        // pé-direito e altura de instalação (I3)
+        var area = numero(a.area_m2), pd = v2 ? numero(a.pe_direito_m) : NaN, pdOrig = v2 ? txt(a.pe_direito_m) + ' m' : '';
+        if (!v2 || !(pd > 0)) {
+          var vol = numero(a.volume_m3);
+          if (vol > 0 && area > 0) { pd = Math.round(vol / area * 100) / 100; pdOrig = 'volume ' + txt(a.volume_m3) + ' m³ ÷ área ' + txt(a.area_m2) + ' m²'; }
+        }
+        if (pd > 0 && pd <= 50) {
+          amb.geo.H = pd; amb.geo.Hinst = pd;
+          linha(rel, 'info', onde, 'Altura de instalação', pdOrig, txt(pd) + ' m', 'Altura de instalação igual ao pé-direito; ajuste se for outra');
+        } else {
+          amb.geo.H = null; amb.geo.Hinst = null;
+          linha(rel, 'substituido', onde, 'Pé-direito', pdOrig || '(ausente)', '(vazio)', 'valor inválido (esperado maior que 0 e até 50 m): digite o pé-direito');
+        }
+        // comprimento e largura (I4)
+        amb.geo.C = null; amb.geo.W = null;
+        if (area > 0) amb.areaVent = area;
+        linha(rel, 'info', onde, 'Comprimento e largura', area > 0 ? 'área ' + txt(a.area_m2) + ' m²' : 'área não informada', '(vazio)',
+          'a ventilação guarda só a área: digite comprimento e largura que deem essa área');
+
+        // insuflamento e temperatura do ar insuflado (I5, I6)
+        var papelIns = a.ins_papel === 'ar exterior' ? 'ar exterior' : (a.ins_papel === 'misturado' ? 'ar misturado' : '');
+        if (qi > 0) linha(rel, 'info', onde, 'Vazão total de insuflamento', m3h(qi), m3h(qi), 'insuflamento da ventilação' + (papelIns ? ', ' + papelIns : '') + fonte(a, 'Q_ins_m3h'));
+        else linha(rel, qi === null ? 'substituido' : 'info', onde, 'Vazão total de insuflamento', qi === null ? txt(a.Q_ins_m3h) : m3h(0), m3h(0), 'sem insuflamento: o ambiente só tem exaustão (o app escolhe só as grelhas)');
+        if (qi > 0) {
+          if (v2 && typeof a.climatizado === 'boolean') {
+            amb.ar.isotermico = !a.climatizado; amb.ar.dT = null;
+            if (a.climatizado) linha(rel, 'info', onde, 'Temperatura do ar insuflado', 'climatizado', 'climatizado, ΔT vazio', 'ambiente climatizado na ventilação: informe o ΔT de insuflamento');
+            else linha(rel, 'info', onde, 'Temperatura do ar insuflado', 'não climatizado', 'isotérmico', 'ambiente não climatizado na ventilação: ar insuflado à temperatura do ambiente');
+          } else {
+            amb.ar.isotermico = false; amb.ar.dT = null;
+            linha(rel, 'info', onde, 'Temperatura do ar insuflado', '(ausente)', 'climatizado, ΔT vazio', 'o arquivo não diz se o ambiente é climatizado: informe o ΔT ou marque isotérmico');
+          }
+        } else { amb.ar.isotermico = false; amb.ar.dT = null; }
+
+        // saída de ar (I5, I7)
+        var rotSai = papel === 'exaustao' ? 'Vazão de exaustão' : 'Vazão de retorno', qExa = separa !== null ? separa : qs;
+        if (separa !== null) linha(rel, 'info', onde, rotSai, m3h(qs), m3h(qs), 'retorno da ventilação' + fonte(a, campoSai));
+        if (coifa) linha(rel, 'info', onde, 'Vazão de exaustão', 'exaustão ' + m3h(qe) + ' (coifa ' + m3h(coifa) + ')', m3h(qExa),
+          'exaustão da cozinha = coifa + exaustão geral; a coifa fica fora do Difusores (NBR 14518): grelhas só para a exaustão geral' + (v2 && qc === null ? '; o arquivo não separa a coifa: toda a exaustão foi tomada como coifa' : '') + (!v2 ? '; a versão 1 do arquivo não separa a coifa: toda a exaustão foi tomada como coifa' : ''));
+        else if (!v2) linha(rel, 'convertido', onde, rotSai, 'saída mecânica ' + (qe === null ? txt(a.Q_exa_m3h) : m3h(qe)), m3h(qs > 0 ? qs : 0),
+          'a versão 1 do arquivo não separa retorno de exaustão: a saída mecânica entra como retorno; troque para exaustão em "Saída de ar", se for o caso');
+        else if (separa === null) linha(rel, 'info', onde, rotSai, m3h(qs > 0 ? qs : 0), m3h(qs > 0 ? qs : 0), (papel === 'exaustao' ? 'exaustão da ventilação' : 'retorno da ventilação') + fonte(a, campoSai));
+
+        // linhas só de informação (I9)
+        var pAlvo = numero(a.pressao_alvo_Pa), pRes = numero(a.pressao_resultante_Pa), ref = typeof a.referencia === 'string' && a.referencia ? a.referencia : '';
+        if (isFinite(pAlvo) || isFinite(pRes)) linha(rel, 'info', onde, 'Pressão' + (ref ? ' em relação a ' + ref : ''),
+          (isFinite(pAlvo) ? 'exigida ' + pa(pAlvo) : 'sem pressão exigida') + (isFinite(pRes) ? '; resultante ' + pa(pRes) : ''), '(fora do Difusores)',
+          'a pressão é do app de Ventilação; o Difusores escolhe as bocas para as vazões' + fonte(a, 'pressao_alvo_Pa'));
+        (Array.isArray(a.Q_transf) ? a.Q_transf : []).forEach(function (t) {
+          if (!ehObj(t)) return;
+          var q = numero(t.Q_m3h), para = typeof t.para === 'string' && t.para ? t.para : '(sem nome)';
+          linha(rel, 'info', onde, 'Transferência com ' + para, isFinite(q) ? (q >= 0 ? 'sai ' : 'entra ') + m3h(Math.abs(q)) : txt(t.Q_m3h), '(fora do Difusores)',
+            'passa por veneziana, porta ou fresta, que este app não escolhe' + fonte(a, 'Q_transf'));
+        });
+        var qae = vazao(a.Q_ae_min_m3h);
+        if (qae !== null) linha(rel, 'info', onde, 'Ar exterior mínimo', m3h(qae), '(fora do Difusores)', 'vai à unidade de tratamento e ao app de Dutos' + fonte(a, 'Q_ae_min_m3h'));
+        if (typeof a.situacao === 'string' && a.situacao && a.situacao !== 'atende') {
+          var av = Array.isArray(a.avisos) ? a.avisos.filter(function (x) { return typeof x === 'string'; }) : [];
+          linha(rel, 'info', onde, 'Situação na ventilação', a.situacao + (av.length ? ' (avisos ' + av.join(', ') + ')' : ''), '(importado assim mesmo)',
+            'o ambiente não atende no app de Ventilação: confira lá antes de escolher as bocas');
+        }
+        var apl = AD.aplicacao(amb.crit.aplicacao);
+        linha(rel, 'info', onde, 'Aplicação (limite de ruído)', '(ausente)', apl ? apl.nome : txt(amb.crit.aplicacao),
+          'o arquivo da ventilação não traz a aplicação: confira o limite de ruído (NBR 10152)');
+        // revisor D2 (2026-11-23, opção "linha no relatório"); texto conferido na NBR 7256, p. 11 (conferente-normas)
+        if (typeof a.tipo === 'string' && a.tipo.trim() === 'Sala de cirurgia') linha(rel, 'info', onde, 'Distribuição do ar', 'sala de cirurgia', '(confira)',
+          'a NBR 7256 pede insuflamento que minimize a turbulência sobre a mesa (por exemplo, fluxo unidirecional de 0,2 a 0,3 m/s) e cerca de 70 % do retorno nos cantos, com a borda inferior da grelha a 20 cm do piso (NBR 7256, p. 11); o app escolhe difusores de mistura e grelhas no forro: confira');
+        novos.push(amb);
+        // revisor D1: a exaustão de um ambiente que também tem retorno vira um 2º ambiente, com a mesma área e o mesmo pé-direito
+        if (separa !== null && separa > 0) {
+          var usados2 = existentes.concat(novos.map(function (x) { return x.nome; })), nomeExa = final + ' (exaustão)';
+          for (var n2 = 2; usados2.indexOf(nomeExa) >= 0; n2++) nomeExa = final + ' (exaustão) (' + n2 + ')';
+          var ex = JSON.parse(JSON.stringify(amb));
+          ex.nome = nomeExa; ex.ar.Q = 0; ex.ar.Qsai = separa; ex.ar.papelSaida = 'exaustao'; ex.ar.isotermico = false; ex.ar.dT = null;
+          linha(rel, 'info', onde, 'Saída de ar', 'retorno ' + m3h(qr) + '; exaustão ' + m3h(separa), 'retorno aqui; exaustão em "' + nomeExa + '"',
+            'o Difusores trata uma saída de ar por ambiente: a exaustão foi para o ambiente "' + nomeExa + '", com a mesma área e o mesmo pé-direito');
+          linha(rel, 'info', 'Ambiente: ' + nomeExa, 'Vazão de exaustão', m3h(separa), m3h(separa),
+            'exaustão do ambiente "' + final + '", que também tem retorno; sem insuflamento: o app escolhe só as grelhas' + fonte(a, 'Q_exa_m3h'));
+          novos.push(ex);
+        } else if (separa === 0) linha(rel, 'info', onde, 'Saída de ar', 'retorno ' + m3h(qr) + '; exaustão ' + m3h(qe), 'retorno',
+          'a exaustão é toda da coifa: o ambiente fica com o retorno');
+      });
+
+      if (!novos.length) return recusa('Nenhum ambiente do arquivo tem vazão a distribuir.');
+      var alt = numero(pj.altitude_m);
+      if (projetoE && isFinite(alt) && Math.abs(alt - projetoE.altitude) > 0.5) {
+        linha(rel, 'info', 'Projeto', 'Altitude', F.num(alt, 0) + ' m', F.num(projetoE.altitude, 0) + ' m',
+          'a ventilação calculou a ' + F.num(alt, 0) + ' m; este projeto está a ' + F.num(projetoE.altitude, 0) + ' m e não foi alterado (as vazões em m³/h entram como estão)');
+      }
+      return { ok: true, ambientes: novos, relatorio: rel, versaoOrigem: vf, motivo: '' };
+    } catch (err) {
+      return recusa('Não foi possível ler o arquivo (' + (err && err.message ? err.message : err) + ').');
+    }
+  }
+
+  // Relatório em texto puro (.txt), no desenho de importaCT.texto
+  var NIVEL = { convertido: 'CONVERTIDO', substituido: 'SUBSTITUÍDO', info: 'INFO' };
+  function texto(r, nomeArquivo) {
+    var NL = '\r\n', rel = r.relatorio || [];
+    var s = 'Importação da ventilação — Difusores TROX v' + D.versao + NL + 'Arquivo: ' + (nomeArquivo || '(sem nome)') + NL;
+    if (!r.ok) return s + 'Arquivo recusado: ' + r.motivo + NL;
+    s += r.ambientes.length + (r.ambientes.length === 1 ? ' ambiente acrescentado' : ' ambientes acrescentados') + NL + NL;
+    rel.forEach(function (x) {
+      s += '[' + (NIVEL[x.nivel] || x.nivel) + '] ' + x.onde + ' · ' + x.campo + NL + '  No arquivo: ' + x.valorArquivo + NL + '  Adotado: ' + x.valorAdotado + NL + '  Motivo: ' + x.motivo + NL + NL;
+    });
+    return s;
+  }
+
+  D.util.importaVent = { importar: importar, texto: texto, FORMATO_VENT: FORMATO_VENT, VERSAO_CONHECIDA: VERSAO_CONHECIDA };
 })(window.Difusores);
 
 </script>
@@ -6263,6 +6550,7 @@ window.HVAC = window.HVAC || {};
     [/\.ar\.to$/, 15, 35, false, 'Informe a temperatura operativa (15 a 35 °C).'],
     [/\.ar\.ur$/, 1, 100, false, 'Informe a umidade relativa (1 a 100 %).'],
     [/\.ar\.retornoPct$/, 0, 100, false, 'Entre 0 e 100 %.'],
+    [/\.ar\.Qsai$/, 0, 1e7, false, 'Informe a vazão de retorno ou de exaustão (m³/h).'],   // v3.6.0, modo "Vazões da ventilação"
     [/\.crit\.dbaMax$/, 0, 120, true, 'Informe o limite em dB(A) (maior que zero).'],
     [/\.crit\.dpMaxPa$/, 0, 2000, true, 'Informe a perda de carga máxima, em Pa (maior que zero).'],
     [/\.crit\.vzoMax$/, 0, 2, true, 'Informe a velocidade limite (maior que zero e até 2 m/s).'],
@@ -6277,6 +6565,9 @@ window.HVAC = window.HVAC || {};
       if (m[2] === 'Hinst') return v > 0 && (g.H === null || g.H === undefined || v <= g.H + 1e-9) ? '' : 'Deve ser maior que zero e não maior que o pé-direito.';
       return v > 0 && (g.Hinst === null || g.Hinst === undefined || v < g.Hinst) ? '' : 'Deve ser maior que zero e menor que a altura de instalação.';
     }
+    // v3.6.0: no modo "Vazões da ventilação" o insuflamento pode ser zero (só exaustão)
+    m = /^amb\.(\d+)\.ar\.Q$/.exec(caminho);
+    if (m && E.ambientes[+m[1]] && E.ambientes[+m[1]].ar.modo === 'ventilacao') return v >= 0 && v <= 1e7 ? '' : 'Informe a vazão (zero se o ambiente só tem exaustão).';
     if (/^projeto\.config\./.test(caminho)) {
       c = porCam[caminho.slice('projeto.config.'.length)];
       if (!c) return '';
@@ -6319,6 +6610,7 @@ window.HVAC = window.HVAC || {};
     AREA: 'Calculada.',
     MONT: 'Rente ao forro: o jato adere ao teto (efeito Coandă) e alcança o valor do catálogo. Suspenso: jato livre, alcance × 0,707 (ASHRAE Fundamentals 2021, p. 20.7, l. 20). A equação vale para jato não circular; o app a aplica também ao ADLR, de jato radial (premissa declarada em "Limites e premissas do método").',
     Q: 'Vazão total do ambiente, somando todos os difusores.',
+    QVENT: 'Vazão total do ambiente, somando todos os difusores; zero quando o ambiente só tem exaustão.',   // v3.6.0 (X3)
     QS: 'Calor sensível que chega ao ar do ambiente: envoltória, vidros, pessoas (parte sensível), iluminação e equipamentos. ' +
         'Ficam fora o calor latente, o ar exterior (tratado na serpentina) e o calor que vai direto ao retorno. Não é a "Carga do ambiente" nem a capacidade do app de carga térmica: no exemplo daquele app (escritório de 120 m²), ' +
         'digitar a "Carga do ambiente" aqui aumenta a vazão em 54 %, e a capacidade, em 60 %. A vazão sai de Q = Qs·3600/(ρ·cp·ΔT).',
@@ -6503,6 +6795,15 @@ window.HVAC = window.HVAC || {};
   function ambientes(E, R) {
     var linhas = E.ambientes.map(function (amb, i) {
       var r = R.amb[i], g = amb.geo, a = area(g), v = ESC.resolver(amb, E.projeto), sp = v.sup;
+      // v3.6.0: só exaustão (modo ventilação, insuflamento 0): a linha mostra a frase X12 e o selo da grelha de exaustão
+      if (!nPend(r) && !sp && r.res && r.e.ar.modo === 'ventilacao' && !(r.res.amb.Q > 0)) {
+        return '<div class="amb-item"><div><a class="nome" href="#/ambiente/' + i + '">' + esc(amb.nome || 'Ambiente sem nome') + '</a>' +
+          '<div class="fraco">' + m2(g.C) + ' × ' + m2(g.W) + ' × ' + m2(g.H) + ' m · ' + f.num(a, 1) + ' m²</div></div>' +
+          '<div class="kpi"><b class="num">' + f.num(r.res.amb.Q, 0) + '</b><div class="fraco">m³/h</div></div>' +
+          '<div class="amb-opc"><div class="fraco">Sem insuflamento: o ambiente só tem exaustão.</div>' + (v.ret ? seloSit(v.ret) : '') + '</div>' +
+          '<div class="acoes"><button type="button" class="botao" data-acao="duplicar" data-amb="' + i + '">Duplicar</button>' +
+          (E.ambientes.length > 1 ? '<button type="button" class="botao perigo" data-acao="excluir" data-amb="' + i + '">Excluir</button>' : '') + '</div></div>';
+      }
       return '<div class="amb-item"><div><a class="nome" href="#/ambiente/' + i + '">' + esc(amb.nome || 'Ambiente sem nome') + '</a>' +
         '<div class="fraco">' + m2(g.C) + ' × ' + m2(g.W) + ' × ' + m2(g.H) + ' m · ' + f.num(a, 1) + ' m²</div></div>' +
         '<div class="kpi"><b class="num">' + (r.res ? f.num(r.res.amb.Q, 0) : '—') + '</b><div class="fraco">m³/h</div></div>' +
@@ -6514,7 +6815,9 @@ window.HVAC = window.HVAC || {};
       '<div class="acoes sec-fim"><button type="button" class="botao prim" data-acao="novo-amb">Criar ambiente</button>' +
       '<span class="fraco">Atalho no editor: <kbd>Ctrl</kbd> <kbd>D</kbd> duplica o ambiente aberto.</span></div>' +
       '<div class="acoes sec-fim"><button type="button" class="botao" data-acao="importar-ct">Importar ambientes da carga térmica</button>' +
-      '<span class="fraco">Traz nome, pé-direito, temperatura e umidade; de arquivo da carga térmica v0.5.1 em diante, também o calor sensível do ambiente. Comprimento e largura ficam para digitar.</span></div>';
+      '<span class="fraco">Traz nome, pé-direito, temperatura e umidade; de arquivo da carga térmica v0.5.1 em diante, também o calor sensível do ambiente. Comprimento e largura ficam para digitar.</span></div>' +
+      '<div class="acoes sec-fim"><button type="button" class="botao" data-acao="importar-vent">Importar vazões da ventilação</button>' +
+      '<span class="fraco">Traz nome, pé-direito e as vazões de insuflamento e de retorno ou exaustão (arquivo "Exportar vazões" do app de Ventilação). Comprimento e largura ficam para digitar.</span></div>';
   }
 
   // ---------------------------------------------------------------- Ambiente
@@ -6530,17 +6833,18 @@ window.HVAC = window.HVAC || {};
       lado('xC', 'l-l', 'direita (x = C)') + lado('y0', 'l-s', 'inferior (y = 0)') + '</div>';
   }
 
-  // Sugestão de largura (só em ambiente importado, com amb.areaCT); a conta é de D.util.importaCT, a tela só escreve
+  // Sugestão de largura (só em ambiente importado, com amb.areaCT ou, desde a v3.6.0, amb.areaVent); a conta é de D.util.importaCT, a tela só escreve
   function sugestaoLargura(amb, i, g) {
-    var IC = D.util.importaCT, A = amb.areaCT, w, t = '', btn = '';
+    var IC = D.util.importaCT, ct = typeof amb.areaCT === 'number' && amb.areaCT > 0, A = ct ? amb.areaCT : amb.areaVent, w, t = '', btn = '';
+    var org = ct ? 'carga térmica' : 'ventilação';
     if (typeof A !== 'number' || !isFinite(A) || !(A > 0)) return '';
-    if (!ok(g.C) && !ok(g.W)) t = 'Área na carga térmica: ' + f.num(A, 1) + ' m². Digite o comprimento e o app sugere a largura.';
+    if (!ok(g.C) && !ok(g.W)) t = 'Área na ' + org + ': ' + f.num(A, 1) + ' m². Digite o comprimento e o app sugere a largura.';
     else if (ok(g.C) && !ok(g.W)) {
       w = IC.larguraSugerida(A, g.C);
       if (w === null) return '';
-      t = 'Largura sugerida: <b>' + f.num(w, 2) + ' m</b> (área da carga térmica, ' + f.num(A, 1) + ' m² ÷ comprimento, ' + f.num(g.C, 2) + ' m). ';
+      t = 'Largura sugerida: <b>' + f.num(w, 2) + ' m</b> (área da ' + org + ', ' + f.num(A, 1) + ' m² ÷ comprimento, ' + f.num(g.C, 2) + ' m). ';
       btn = '<button type="button" class="botao" data-acao="usar-largura" data-amb="' + i + '">Usar</button>';
-    } else if (ok(g.C) && ok(g.W) && IC.areaDifere(A, g.C, g.W)) t = 'C × L = ' + f.num(g.C * g.W, 1) + ' m²; a carga térmica calculou com ' + f.num(A, 1) + ' m².';
+    } else if (ok(g.C) && ok(g.W) && IC.areaDifere(A, g.C, g.W)) t = 'C × L = ' + f.num(g.C * g.W, 1) + ' m²; a ' + org + ' calculou com ' + f.num(A, 1) + ' m².';
     else return '';
     return '<p class="fraco sug-larg">' + t + btn + '</p>';
   }
@@ -6588,21 +6892,33 @@ window.HVAC = window.HVAC || {};
       });
 
     // 2 Ar
-    var Qv = ar ? ar.Q : (a.modo === 'vazao' && ok(a.Q) ? a.Q : NaN);
-    s += C.bloco('ar', 2, 'Ar', f.num(Qv, 0) + ' m³/h · ΔT ' + f.num(a.dT, 1) + ' °C · ' + f.num(toAd, 1) + ' °C', ar ? f.num(ar.qEsp, 1) : '—', 'm³/h·m²', function () {
-      return C.aprender('A vazão total do ambiente soma todos os difusores. Pelo calor sensível, a vazão sai de Q = Qs·3600/(ρ·cp·ΔT).') +
+    // v3.6.0: 3º modo, "Vazões da ventilação" (insuflamento e saída em m³/h; climatizado ou isotérmico); textos X1–X7 aprovados em 2026-11-23
+    var vent = a.modo === 'ventilacao', iso = vent && a.isotermico === true, exa = vent && a.papelSaida === 'exaustao', soSai = vent && ok(a.Q) && a.Q === 0;
+    var Qv = ar ? ar.Q : ((a.modo === 'vazao' || vent) && ok(a.Q) ? a.Q : NaN), resumoAr;
+    if (!vent) resumoAr = f.num(Qv, 0) + ' m³/h · ΔT ' + f.num(a.dT, 1) + ' °C · ' + f.num(toAd, 1) + ' °C';
+    else if (soSai) resumoAr = f.num(a.Qsai, 0) + ' m³/h de ' + (exa ? 'exaustão' : 'retorno') + (iso ? ' · isotérmico' : '');
+    else resumoAr = f.num(Qv, 0) + ' m³/h · ' + (iso ? 'isotérmico' : 'ΔT ' + f.num(a.dT, 1) + ' °C') + ' · ' + (exa ? 'exaustão ' : 'retorno ') + f.num(a.Qsai, 0) + ' m³/h';
+    s += C.bloco('ar', 2, 'Ar', resumoAr, ar ? f.num(ar.qEsp, 1) : '—', 'm³/h·m²', function () {
+      return C.aprender(vent ? 'As vazões vêm do app de Ventilação ou do projeto: insuflamento e saída em m³/h. Isotérmico: o ar entra à temperatura do ambiente; sem ΔT não há capacidade sensível nem queda do jato frio.'
+          : 'A vazão total do ambiente soma todos os difusores. Pelo calor sensível, a vazão sai de Q = Qs·3600/(ρ·cp·ΔT).') +
         '<div style="margin-bottom:14px">' + C.segmentado({ rotulo: 'Entrada da vazão', caminho: cam + 'ar.modo', valor: a.modo,
-          opcoes: [{ v: 'vazao', t: 'Vazão total conhecida' }, { v: 'carga', t: 'Calor sensível do ambiente' }] }) + '</div><div class="grade">' +
+          opcoes: [{ v: 'vazao', t: 'Vazão total conhecida' }, { v: 'carga', t: 'Calor sensível do ambiente' }, { v: 'ventilacao', t: 'Vazões da ventilação' }] }) + '</div>' +
+        (vent ? '<div style="margin-bottom:14px">' + C.segmentado({ rotulo: 'Saída de ar', caminho: cam + 'ar.papelSaida', valor: exa ? 'exaustao' : 'retorno',
+            opcoes: [{ v: 'retorno', t: 'Retorno' }, { v: 'exaustao', t: 'Exaustão' }] }) + '</div>' +
+          (soSai ? '' : '<div style="margin-bottom:14px">' + C.segmentado({ rotulo: 'Temperatura do ar insuflado', caminho: cam + 'ar.isotermico', valor: iso ? 'sim' : 'nao', booleano: true,
+            opcoes: [{ v: 'nao', t: 'Climatizado (ΔT de insuflamento)' }, { v: 'sim', t: 'Isotérmico (ar à temperatura do ambiente)' }] }) + '</div>') : '') +
+        '<div class="grade">' +
         (a.modo === 'carga'
           ? num(cam + 'ar.qs', 'Calor sensível do ambiente (sem ar exterior, sem latente, sem calor ao retorno)', a.qs, { unidade: 'W', casas: 0, fonte: T.QS }) +
             C.calculado({ rotulo: 'Vazão total de insuflamento', valor: ar ? f.num(ar.Q, 0) : '—', unidade: 'm³/h', fonte: T.QCALC })
-          : num(cam + 'ar.Q', 'Vazão total de insuflamento', a.Q, { unidade: 'm³/h', casas: 0, fonte: T.Q })) +
-        num(cam + 'ar.dT', 'ΔT de insuflamento', a.dT, { unidade: '°C', casas: 1, fonte: T.DT }) + '</div>' +
+          : num(cam + 'ar.Q', 'Vazão total de insuflamento', a.Q, { unidade: 'm³/h', casas: 0, fonte: vent ? T.QVENT : T.Q })) +
+        (vent ? num(cam + 'ar.Qsai', exa ? 'Vazão de exaustão' : 'Vazão de retorno', a.Qsai, { unidade: 'm³/h', casas: 0 }) : '') +
+        (iso || soSai ? '' : num(cam + 'ar.dT', 'ΔT de insuflamento', a.dT, { unidade: '°C', casas: 1, fonte: T.DT })) + '</div>' +
         mais('mais-ar', function () {
           return '<div class="grade">' +
             num(cam + 'ar.to', 'Temperatura operativa de projeto', toAd, { unidade: '°C', casas: 1, padrao: AD.toPadrao(a.dT), alterado: ok(a.to), fonte: T.TO }) +
             num(cam + 'ar.ur', 'Umidade relativa do ambiente', ok(a.ur) ? a.ur : AD.UR_PADRAO, { unidade: '%', casas: 0, padrao: AD.UR_PADRAO, alterado: ok(a.ur), seloPadrao: 'padrão do app', fonte: T.UR }) +
-            num(cam + 'ar.retornoPct', 'Vazão de retorno', a.retornoPct, { unidade: '%', casas: 0, fonte: T.RET }) +
+            (vent ? '' : num(cam + 'ar.retornoPct', 'Vazão de retorno', a.retornoPct, { unidade: '%', casas: 0, fonte: T.RET })) +
             C.calculado({ rotulo: 'Vazão específica', valor: ar ? f.num(ar.qEsp, 1) : '—', unidade: 'm³/h·m²', fonte: T.QESP }) + '</div>';
         });
     });
@@ -6782,19 +7098,19 @@ window.HVAC = window.HVAC || {};
     }
     // grelhas de retorno (posições calculadas ou ajustadas à mão)
     if (ret && ret.pos) {
-      var gl = ret.L / 1000, gh = ret.H / 1000;
+      var gl = ret.L / 1000, gh = ret.H / 1000, pre = ret.papel === 'exaustao' ? 'E' : 'R';   // v3.6.0: grelhas de exaustão E1, E2…
       ret.pos.forEach(function (p, i) {
         var v = (temCampo && ctx.altoNivel) ? ctx.campo(p) : 0, cor = classeJato(v), cls = interativo ? ' class="grelha"' : '';
         s += '<g' + cls + ' data-ret-idx="' + i + '" transform="translate(' + X(p.x) + ',' + Y(p.y) + ')">';
         if (!p.parede) {
           var wpx = Math.max(gl * ESC, 14), hpx = Math.max(gh * ESC, 8);
-          s += '<rect class="' + cor + '" x="' + (-wpx / 2) + '" y="' + (-hpx / 2) + '" width="' + wpx + '" height="' + hpx + '" fill="url(#hach)" stroke-width="1.4"/><text class="pl-texto" x="0" y="' + (-hpx / 2 - 4) + '" text-anchor="middle" font-size="10">R' + (i + 1) + '</text>';
+          s += '<rect class="' + cor + '" x="' + (-wpx / 2) + '" y="' + (-hpx / 2) + '" width="' + wpx + '" height="' + hpx + '" fill="url(#hach)" stroke-width="1.4"/><text class="pl-texto" x="0" y="' + (-hpx / 2 - 4) + '" text-anchor="middle" font-size="10">' + pre + (i + 1) + '</text>';
         } else if (p.parede === 'x0' || p.parede === 'xC') {
           var lpx = Math.max(gl * ESC, 14);
-          s += '<rect class="' + cor + '" x="-4.5" y="' + (-lpx / 2) + '" width="9" height="' + lpx + '" fill="url(#hach)" stroke-width="1.4"/><text class="pl-texto" x="' + (p.parede === 'x0' ? -8 : 8) + '" y="4" text-anchor="' + (p.parede === 'x0' ? 'end' : 'start') + '" font-size="10">R' + (i + 1) + '</text>';
+          s += '<rect class="' + cor + '" x="-4.5" y="' + (-lpx / 2) + '" width="9" height="' + lpx + '" fill="url(#hach)" stroke-width="1.4"/><text class="pl-texto" x="' + (p.parede === 'x0' ? -8 : 8) + '" y="4" text-anchor="' + (p.parede === 'x0' ? 'end' : 'start') + '" font-size="10">' + pre + (i + 1) + '</text>';
         } else {
           var lpy = Math.max(gl * ESC, 14);
-          s += '<rect class="' + cor + '" x="' + (-lpy / 2) + '" y="-4.5" width="' + lpy + '" height="9" fill="url(#hach)" stroke-width="1.4"/><text class="pl-texto" x="0" y="' + (p.parede === 'y0' ? 17 : -9) + '" text-anchor="middle" font-size="10">R' + (i + 1) + '</text>';
+          s += '<rect class="' + cor + '" x="' + (-lpy / 2) + '" y="-4.5" width="' + lpy + '" height="9" fill="url(#hach)" stroke-width="1.4"/><text class="pl-texto" x="0" y="' + (p.parede === 'y0' ? 17 : -9) + '" text-anchor="middle" font-size="10">' + pre + (i + 1) + '</text>';
         }
         s += '</g>';
       });
@@ -6810,7 +7126,7 @@ window.HVAC = window.HVAC || {};
     if (sup && ctx && ctx.campo) h += '<span class="pl-chip c-jato">Jato no teto ≥ 0,25 m/s (escuro ≥ 0,5 m/s) — ASHRAE Fundamentals 2021, p. 20.5, l. 24</span>';
     h += '<span class="pl-chip c-zona">Fronteira da zona ocupada — NBR 16401-2, p. 8, l. 11</span>';
     if (amb && amb.zona && ['-x', '+x', '-y', '+y'].some(function (k) { return amb.zona.recuo[k] >= 1; })) h += '<span class="pl-chip c-ext">Parede externa (recuo 1,0 m)</span>';
-    if (ret) h += '<span class="pl-chip c-ret">Grelha de retorno ' + F.esc(ret.modelo) + ' ' + ret.H + '×' + ret.L + (ret.pos ? ' (' + ret.pos.length + ')' : '') + '</span>';
+    if (ret) h += '<span class="pl-chip c-ret">Grelha de ' + (ret.papel === 'exaustao' ? 'exaustão ' : 'retorno ') + F.esc(ret.modelo) + ' ' + ret.H + '×' + ret.L + (ret.pos ? ' (' + ret.pos.length + ')' : '') + '</span>';
     return h + '</div>';
   }
 
@@ -6830,9 +7146,9 @@ window.HVAC = window.HVAC || {};
     }
     if (ret && ret.pos && ret.pos.length) {
       var alto = !!(ctx && ctx.altoNivel && ctx.campo && sup);
-      h += '<h3 class="pl-tit">Coordenadas das grelhas de retorno (m)</h3><div class="tabela-rolo"><table class="pl-tab"><thead><tr><th>Nº</th><th class="num">x</th><th class="num">y</th><th>Posição</th><th>Dimensão H × L</th><th class="num">Difusores atendidos</th><th class="num">Jato no teto (m/s)</th></tr></thead><tbody>';
+      h += '<h3 class="pl-tit">Coordenadas das grelhas de ' + (ret.papel === 'exaustao' ? 'exaustão' : 'retorno') + ' (m)</h3><div class="tabela-rolo"><table class="pl-tab"><thead><tr><th>Nº</th><th class="num">x</th><th class="num">y</th><th>Posição</th><th>Dimensão H × L</th><th class="num">Difusores atendidos</th><th class="num">Jato no teto (m/s)</th></tr></thead><tbody>';
       ret.pos.forEach(function (p, i) {
-        h += '<tr><td>R' + (i + 1) + '</td><td class="num">' + F.num(p.x, 2) + '</td><td class="num">' + F.num(p.y, 2) + '</td><td>' + (p.parede ? PAREDE_NOME[p.parede] : 'forro') + '</td><td>' + ret.H + ' × ' + ret.L + ' mm</td><td class="num">' + (ret.grupos ? ret.grupos[i] : '—') + '</td><td class="num">' + (alto ? F.num(ctx.campo(p), 2) : '—') + '</td></tr>';
+        h += '<tr><td>' + (ret.papel === 'exaustao' ? 'E' : 'R') + (i + 1) + '</td><td class="num">' + F.num(p.x, 2) + '</td><td class="num">' + F.num(p.y, 2) + '</td><td>' + (p.parede ? PAREDE_NOME[p.parede] : 'forro') + '</td><td>' + ret.H + ' × ' + ret.L + ' mm</td><td class="num">' + (ret.grupos ? ret.grupos[i] : '—') + '</td><td class="num">' + (alto ? F.num(ctx.campo(p), 2) : '—') + '</td></tr>';
       });
       h += '</tbody></table></div>';
       if (ret.maxDist != null) h += '<p class="fraco">Difusor mais afastado da grelha mais próxima: ' + F.num(ret.maxDist, 2) + ' m (limite ' + F.num(ret.dMax, 0) + ' m)' + (ret.espMin != null ? ' · espaçamento mínimo entre grelhas: ' + F.num(ret.espMin, 2) + ' m' : '') + ' · ' + F.num(ret.areaPorGrelha, 0) + ' m² por grelha</p>';
@@ -6962,14 +7278,15 @@ window.HVAC = window.HVAC || {};
     else origem += '<span class="fraco">1ª opção do app</span>';
     if (v.ajustada) origem += ' <span class="fraco">posições ajustadas na planta</span> ' + botao('Restaurar as posições', 'restaurar-pos', i, '');
     h += '<p class="resp-origem">' + origem + '</p>';
-    if (a.Qret <= 0) h += '<p class="resp-ret">Retorno: sem vazão de retorno</p>';
-    else if (!rt) h += '<p class="resp-ret">Retorno: nenhuma grelha das famílias marcadas atende ao domínio publicado para ' + f.num(a.Qret, 0) + ' m³/h com até ' + D.motor.config.retorno.maxPecas + ' grelhas.</p>';
-    else h += '<p class="resp-ret"><span>Retorno: <span id="sel-ret" data-n="' + rt.n + '">' + esc(retTxt(rt)) + '</span>, ' + esc(minuscula(rt.faixaFace.nome)) + '</span> <span class="selo sit sit-' + esc(rt.selo) + '" data-g="ret_selo">' + esc(SELO[rt.selo] || rt.selo) + '</span></p>';
+    var SAI = rotSai(v);
+    if (a.Qret <= 0) h += '<p class="resp-ret">' + SAI.Cap + ': sem vazão de ' + SAI.nome + '</p>';
+    else if (!rt) h += '<p class="resp-ret">' + SAI.Cap + ': nenhuma grelha das famílias marcadas atende ao domínio publicado para ' + f.num(a.Qret, 0) + ' m³/h com até ' + D.motor.config.retorno.maxPecas + ' grelhas.</p>';
+    else h += '<p class="resp-ret"><span>' + SAI.Cap + ': <span id="sel-ret" data-n="' + rt.n + '">' + esc(retTxt(rt)) + '</span>, ' + esc(minuscula(rt.faixaFace.nome)) + '</span> <span class="selo sit sit-' + esc(rt.selo) + '" data-g="ret_selo">' + esc(SELO[rt.selo] || rt.selo) + '</span></p>';
     if (r.res.semAprovada) h += '<div class="aviso erro" id="aviso-fora-alcance">' + esc(r.res.semAprovada.texto) + '</div>';
     v.avisos.forEach(function (t) { h += '<div class="aviso">' + esc(t) + '</div>'; });
     var av = r.avisos.filter(function (x) { return x.nivel !== 'erro'; });
     if (av.length) h += '<div class="aviso alerta" id="avisos-entrada"><b>Avisos de entrada</b><ul class="lista-avisos">' + av.map(function (x) { return '<li>' + esc(x.texto) + '</li>'; }).join('') + '</ul></div>';
-    h += ressalvas(s.rastro, '') + (rt ? ressalvas(rt.rastro, 'Retorno') : '');
+    h += ressalvas(s.rastro, '') + (rt ? ressalvas(rt.rastro, SAI.Cap) : '');
     h += '<span hidden data-g="ins_familia">' + esc(ESC.familiaDe(s.cand)) + '</span><span hidden data-g="ins_tam">' + esc(s.cand.familia === 'ADE' ? s.cand.ab + 'x' + s.cand.comp : String(s.cand.tam)) + '</span>' +
       '<span hidden data-g="ins_n">' + s.n + '</span><span hidden data-g="ins_indice">' + f.num(s.indice.total, 0) + '</span>';
     return h + '</section>';
@@ -7079,8 +7396,9 @@ window.HVAC = window.HVAC || {};
       linhaRuido('Atenuação da sala', '− ' + f.num(s.atenuacao, 1) + ' dB') +
       linhaRuido('Ruído do insuflamento no ambiente', dB(s.lp));
     if (rt) {
-      l += linhaRuido('Ruído do retorno no ambiente (' + plural(rt.n, 'grelha', 'grelhas') + ')', dB(rt.lp));
-      if (typeof rt.lpTotal === 'number') l += linhaRuido('Ruído no ambiente, insuflamento + retorno', dB(rt.lpTotal));
+      var SAI = rotSai(v);
+      l += linhaRuido('Ruído ' + SAI.doDa + ' no ambiente (' + plural(rt.n, 'grelha', 'grelhas') + ')', dB(rt.lp));
+      if (typeof rt.lpTotal === 'number') l += linhaRuido('Ruído no ambiente, insuflamento + ' + SAI.nome, dB(rt.lpTotal));
     }
     l += linhaRuido('Limite do ambiente', f.num(e.crit.dbaMax, 0) + ' dB(A) ' + (ruidoV ? sit(ruidoV.situacao) : ''));
     return '<section class="cartao" id="sel-ruido"><h2>Do catálogo ao ruído no ambiente</h2><p class="suave">O catálogo informa a potência sonora de uma peça. O limite do ambiente é de nível de pressão sonora: soma-se o conjunto de peças e desconta-se a atenuação da sala.</p>' +
@@ -7088,28 +7406,41 @@ window.HVAC = window.HVAC || {};
   }
 
   function linhaCV(c, val) { return '<tr><td class="chave">' + esc(c) + '</td><td>' + val + '</td></tr>'; }
+  // v3.6.0: nome da saída de ar (retorno ou exaustão) e o ambiente só com exaustão (modo ventilação, insuflamento 0)
+  function rotSai(v) {
+    var a = v && v.r && v.r.res ? v.r.res.amb : null, exa = !!(a && a.papelSaida === 'exaustao');
+    return exa ? { exa: true, nome: 'exaustão', Cap: 'Exaustão', doDa: 'da exaustão' } : { exa: false, nome: 'retorno', Cap: 'Retorno', doDa: 'do retorno' };
+  }
+  function soExaustao(v) { return !!(v && v.r && v.r.res && v.r.e.ar.modo === 'ventilacao' && !(v.r.res.amb.Q > 0)); }
+  function secSoExaustao(v) {
+    var h = '<section class="cartao resposta" id="sel-resposta"><p class="resp-linha">Sem insuflamento: o ambiente só tem exaustão.</p>';
+    v.avisos.forEach(function (t) { h += '<div class="aviso">' + esc(t) + '</div>'; });
+    var av = v.r.avisos.filter(function (x) { return x.nivel !== 'erro'; });
+    if (av.length) h += '<div class="aviso alerta" id="avisos-entrada"><b>Avisos de entrada</b><ul class="lista-avisos">' + av.map(function (x) { return '<li>' + esc(x.texto) + '</li>'; }).join('') + '</ul></div>';
+    return h + (v.ret ? ressalvas(v.ret.rastro, 'Exaustão') : '') + '</section>';
+  }
   function secRetorno(E, i, v) {
-    var rt = v.ret, a = v.r.res.amb, e = v.r.e, cfg = D.motor.config.retorno, h = '<section class="cartao" id="sel-retorno"><h2>Retorno</h2>';
-    if (a.Qret <= 0) return h + '<p class="fraco">Sem vazão de retorno.</p></section>';
+    var rt = v.ret, a = v.r.res.amb, e = v.r.e, cfg = D.motor.config.retorno, SAI = rotSai(v), h = '<section class="cartao" id="sel-retorno"><h2>' + SAI.Cap + '</h2>';
+    if (a.Qret <= 0) return h + '<p class="fraco">Sem vazão de ' + SAI.nome + '.</p></section>';
     if (!rt) return h + '<div class="aviso alerta">Nenhuma grelha das famílias marcadas atende ao domínio publicado para ' + f.num(a.Qret, 0) + ' m³/h com até ' + cfg.maxPecas + ' grelhas. Aumente o máximo de grelhas (Projeto, Mais opções) ou marque outras famílias.</div></section>';
     var alto = !!(v.ctxRet && v.ctxRet.altoNivel && v.ctxRet.sup);
     h += '<p class="resp-linha">Use ' + esc(retTxt(rt)) + ', ' + esc(minuscula(rt.faixaFace.nome)) + ' ' + seloSit(rt) + ' ' +
-      (v.retAdotada ? C.selo('alterado', 'adotada por você') : '<span class="fraco">1ª opção de retorno</span>') +
+      (v.retAdotada ? C.selo('alterado', 'adotada por você') : '<span class="fraco">1ª opção de ' + SAI.nome + '</span>') +
       (v.retAjustada ? ' <span class="fraco">grelhas ajustadas na planta</span> ' + botao('Restaurar as grelhas', 'restaurar-ret', i, '') : '') + '</p>';
     h += '<div class="kpis sel-kpis">' +
       kpiBt('retorno', 'Vazão por grelha', vaz(rt.Qp), plural(rt.n, 'grelha', 'grelhas')) +
       kpiBt('retorno', 'Velocidade de face', '<span data-g="ret_vFace">' + f.num(rt.vFace, 2) + '</span> m/s', 'área bruta ' + f.num(rt.areaBruta, 3) + ' m² · recomendado ≤ ' + f.num(rt.faixaFace.max, 1)) +
       kpiBt('retorno', 'Perda de carga', '<span data-g="ret_dp_pa">' + f.num(rt.dp * PA, 1) + '</span> Pa', '(<span data-g="ret_dp">' + f.num(rt.dp, 2) + '</span> mmCA)') +
-      kpiBt('retorno', 'Ruído do retorno no ambiente', dB(rt.lp), 'limite ' + f.num(e.crit.dbaMax, 0) + ' dB(A)') + '</div>';
+      kpiBt('retorno', 'Ruído ' + SAI.doDa + ' no ambiente', dB(rt.lp), 'limite ' + f.num(e.crit.dbaMax, 0) + ' dB(A)') + '</div>';
     var balanc = e.retorno.tipo === 'plenum' ? 'plenum acessível e limpo no entreforro; grelhas iguais, distribuídas para definir o caminho do ar; regulagem na própria grelha (NBR 16401-1, p. 22, l. 19)' :
       rt.n + ' ramal(is) iguais com registro (10.6.1), fechamento ≤ 50 % (10.6.2); TAB ±10 % por boca (17.6.3)';
     h += '<div class="tabela-rolo"><table class="sel-tab"><tbody>' +
-      linhaCV('Posição e tipo', esc(rt.faixaFace.nome) + ' · ' + (e.retorno.tipo === 'plenum' ? 'retorno por plenum' : 'retorno dutado, um ramal por grelha')) +
+      linhaCV('Posição e tipo', esc(rt.faixaFace.nome) + ' · ' + (e.retorno.tipo === 'plenum' ? SAI.nome + ' por plenum' : (SAI.exa ? 'exaustão dutada' : 'retorno dutado') + ', um ramal por grelha')) +
       linhaCV('Distribuição', (rt.grupos ? 'difusores atendidos por grelha: ' + esc(rt.grupos.join(' / ')) : 'sem difusores de referência') + (rt.maxDist != null ? ' · difusor mais afastado a ' + f.num(rt.maxDist, 2) + ' m da grelha mais próxima (limite ' + f.num(rt.dMax, 0) + ' m)' : '') + (rt.espMin != null ? ' · espaçamento mínimo entre grelhas ' + f.num(rt.espMin, 2) + ' m' : '')) +
       linhaCV('Balanceamento', esc(balanc)) + linhaCV('Fonte dos dados', esc(rt.fonte)) + '</tbody></table></div>';
-    h += '<h3 class="sel-sub">Verificações do retorno</h3>' + tabelaVerifs(rt.verifs, e) + metodos(rt.rastro, 'Retorno');
+    h += '<h3 class="sel-sub">Verificações ' + SAI.doDa + '</h3>' + tabelaVerifs(rt.verifs, e) + metodos(rt.rastro, SAI.Cap);
     if (v.retLista.length > 1) {
-      h += '<h3 class="sel-sub">Alternativas de retorno</h3><div class="tabela-rolo so-computador"><table class="sel-tab"><thead><tr><th>Solução</th><th class="num">Vazão por grelha</th><th class="num">Velocidade de face</th><th class="num">Perda de carga</th><th class="num">Ruído do retorno</th><th class="num">Área por grelha</th>' +
+      h += '<h3 class="sel-sub">Alternativas de ' + SAI.nome + '</h3><div class="tabela-rolo so-computador"><table class="sel-tab"><thead><tr><th>Solução</th><th class="num">Vazão por grelha</th><th class="num">Velocidade de face</th><th class="num">Perda de carga</th><th class="num">Ruído ' + SAI.doDa + '</th><th class="num">Área por grelha</th>' +
         (alto ? '<th class="num">Jato na grelha</th>' : '') + '<th>Situação</th><th class="num">Nota da solução</th><th></th></tr></thead><tbody>' + v.retLista.map(function (x, k) {
           var adot = ESC.sRet(x.cand) === ESC.sRet(rt.cand);
           return '<tr' + (adot ? ' class="adotada"' : '') + '><td>' + esc(x.titulo) + '</td><td class="num">' + vaz(x.Qp) + '</td><td class="num">' + f.num(x.vFace, 2) + ' m/s</td><td class="num">' + dpTxt(x.dp) + '</td><td class="num">' + dB(x.lp) +
@@ -7161,6 +7492,7 @@ window.HVAC = window.HVAC || {};
     h += '<nav class="amb-nav sel-nav">' + (M > 1 ? '<a href="#/selecao">Voltar à seleção do conjunto</a>' : '') + '<a href="#/ambiente/' + i + '">Editar o ambiente</a>' +
       (i > 0 ? '<a href="#/selecao/' + (i - 1) + '">Ambiente anterior</a>' : '') + (i < M - 1 ? '<a href="#/selecao/' + (i + 1) + '">Próximo ambiente</a>' : '') + '</nav>';
     if (nPend(r)) return h + quadroFalta(r, i);
+    if (!s && soExaustao(v)) return h + secSoExaustao(v) + secRetorno(E, i, v) + secPlanta(E, i, v) + premissas();
     if (!s) {
       var erros = r.avisos.filter(function (x) { return x.nivel === 'erro'; });
       if (!r.res && erros.length) return h + '<div class="aviso erro">' + erros.map(function (x) { return esc(x.texto); }).join('<br>') + '</div>';
@@ -7172,23 +7504,25 @@ window.HVAC = window.HVAC || {};
   // ---------------------------------------------------------------- conjunto
   function conjunto(E, R) {
     var linhas = E.ambientes.map(function (amb, i) {
-      var v = ESC.resolver(amb, E.projeto), s = v.sup, rt = v.ret, a = v.r.res ? v.r.res.amb : null;
+      var v = ESC.resolver(amb, E.projeto), s = v.sup, rt = v.ret, a = v.r.res ? v.r.res.amb : null, SAI = rotSai(v);
+      if (!s && soExaustao(v)) return '<tr><td><a href="#/selecao/' + i + '">' + esc(sobreNome(amb)) + '</a></td><td colspan="4" class="fraco">Sem insuflamento: o ambiente só tem exaustão.</td><td>' + (rt ? esc(retTxt(rt)) : '<span class="fraco">sem grelha</span>') + '</td><td>' + (rt ? seloSit(rt) : '') + '</td></tr>';
       return '<tr><td><a href="#/selecao/' + i + '">' + esc(sobreNome(amb)) + '</a></td>' + (s
         ? '<td>' + esc(AD.rotuloSolucao(s)) + (v.adotada ? ' ' + C.selo('alterado', 'adotada por você') : '') + '</td><td class="num">' + vaz(s.Qp) + '</td><td class="num">' + dB(ruido(v)) + '</td><td class="num">' + dpTxt(s.dp) + '</td>' +
-          '<td>' + (a && a.Qret <= 0 ? '<span class="fraco">sem retorno</span>' : (rt ? esc(retTxt(rt)) : '<span class="fraco">sem grelha</span>')) + '</td><td>' + seloSit(s) + '</td>'
+          '<td>' + (a && a.Qret <= 0 ? '<span class="fraco">sem ' + SAI.nome + '</span>' : (rt ? esc(retTxt(rt)) : '<span class="fraco">sem grelha</span>')) + '</td><td>' + seloSit(s) + '</td>'
         : '<td colspan="6" class="fraco">' + esc(opcaoTxt(v.r)) + '</td>') + '</tr>';
     }).join('');
     // F3d (M4): no celular, um cartão por ambiente que abre a Seleção dele (mesmos campos da tabela)
     var itens = E.ambientes.map(function (amb, i) {
-      var v = ESC.resolver(amb, E.projeto), s = v.sup, rt = v.ret, a = v.r.res ? v.r.res.amb : null;
+      var v = ESC.resolver(amb, E.projeto), s = v.sup, rt = v.ret, a = v.r.res ? v.r.res.amb : null, SAI = rotSai(v);
+      if (!s && soExaustao(v)) return { href: '#/selecao/' + i, titulo: sobreNome(amb), sub: 'Sem insuflamento: o ambiente só tem exaustão.', valores: [val('Exaustão', rt ? retTxt(rt) : 'sem grelha')], situacao: rt ? seloSit(rt) : '' };
       if (!s) return { href: '#/selecao/' + i, titulo: sobreNome(amb), sub: opcaoTxt(v.r) };
       return { href: '#/selecao/' + i, titulo: sobreNome(amb), sub: AD.rotuloSolucao(s),
         valores: [val('Vazão por peça', f.num(s.Qp, 0), 'm³/h'), val('Ruído no ambiente', f.num(ruido(v), 1), 'dB(A)'), val('Perda de carga', f.num(s.dp * PA, 1), 'Pa'),
-          val('Retorno', a && a.Qret <= 0 ? 'sem retorno' : (rt ? retTxt(rt) : 'sem grelha'))],
+          val(SAI.Cap, a && a.Qret <= 0 ? 'sem ' + SAI.nome : (rt ? retTxt(rt) : 'sem grelha'))],
         situacao: seloSit(s) + (v.adotada ? ' ' + C.selo('alterado', 'adotada por você') : '') };
     });
     return C.cabeca('Passo 3 de 4', 'Seleção', 'A solução adotada de cada ambiente.') +
-      '<div class="cartao so-computador"><div class="tabela-rolo"><table class="sel-tab"><thead><tr><th>Ambiente</th><th>Solução adotada</th><th class="num">Vazão por peça</th><th class="num">Ruído no ambiente</th><th class="num">Perda de carga</th><th>Retorno</th><th>Situação</th></tr></thead><tbody>' + linhas + '</tbody></table></div></div>' +
+      '<div class="cartao so-computador"><div class="tabela-rolo"><table class="sel-tab"><thead><tr><th>Ambiente</th><th>Solução adotada</th><th class="num">Vazão por peça</th><th class="num">Ruído no ambiente</th><th class="num">Perda de carga</th><th>' + (E.ambientes.some(function (amb) { return amb.ar && amb.ar.modo === 'ventilacao' && amb.ar.papelSaida === 'exaustao'; }) ? 'Retorno ou exaustão' : 'Retorno') + '</th><th>Situação</th></tr></thead><tbody>' + linhas + '</tbody></table></div></div>' +
       cartoes(itens) + cartaoEmitir(E);
   }
 
@@ -7208,12 +7542,12 @@ window.HVAC = window.HVAC || {};
   function conta(chave, E, U) {
     var i = Math.min(U.amb, E.ambientes.length - 1), amb = E.ambientes[i];
     if (!amb) return null;
-    var v = ESC.resolver(amb, E.projeto), s = v.sup;
-    if (!s) return null;
-    var sobre = sobreNome(amb) + ' · ' + AD.rotuloSolucao(s), ps = s.rastro.passos, rt = v.ret, titulo, valor, html;
+    var v = ESC.resolver(amb, E.projeto), s = v.sup, SAI = rotSai(v);
+    if (!s && !(chave === 'retorno' && v.ret)) return null;   // só exaustão (v3.6.0): só a conta da grelha
+    var sobre = sobreNome(amb) + ' · ' + (s ? AD.rotuloSolucao(s) : retTxt(v.ret)), ps = s ? s.rastro.passos : [], rt = v.ret, titulo, valor, html;
     if (chave === 'ruido') {
       titulo = 'Ruído no ambiente'; valor = dB(ruido(v));
-      html = grupoHtml('Insuflamento', filtrar(ps, /^Vazão por peça|sonor|ruído/i, ['acustica'])) + (rt ? grupoHtml('Retorno', filtrar(rt.rastro.passos, /^Vazão por grelha|sonor|ruído/i, ['acustica'])) : '');
+      html = grupoHtml('Insuflamento', filtrar(ps, /^Vazão por peça|sonor|ruído/i, ['acustica'])) + (rt ? grupoHtml(SAI.Cap, filtrar(rt.rastro.passos, /^Vazão por grelha|sonor|ruído/i, ['acustica'])) : '');
     } else if (chave === 'dp') {
       titulo = 'Perda de carga'; valor = f.num(s.dp * PA, 1) + ' Pa (' + f.num(s.dp, 2) + ' mmCA)';
       html = grupoHtml('', filtrar(ps, /^Vazão por (peça|direção)|perda de carga|Δp|^Registro/i, [])) +
@@ -7227,7 +7561,7 @@ window.HVAC = window.HVAC || {};
       html = grupoHtml('', filtrar(ps, /^Alcance/, ['alcance']));
     } else if (chave === 'retorno') {
       if (!rt) return null;
-      titulo = 'Retorno'; valor = retTxt(rt); html = grupoHtml('', rt.rastro.passos);
+      titulo = SAI.Cap; valor = retTxt(rt); html = grupoHtml('', rt.rastro.passos);
     } else return null;
     return { sobre: sobre, titulo: titulo, valor: valor, html: html };
   }
@@ -7597,22 +7931,31 @@ window.HVAC = window.HVAC || {};
   function entradasTabela(e, a) {
     var cl = D.motor.selecao.classeVelocidade(e), rf = D.dados.normas.bocas.retornoFace[e.retorno.posicao], pe = e.geo.paredesExternas || {};
     var ext = ['x0', 'xC', 'y0', 'yW'].filter(function (k) { return pe[k]; }).map(function (k) { return PAREDE_NOME[k]; });
+    var vent = e.ar.modo === 'ventilacao', soE = vent && !(a.Q > 0), X = sai(a);
     var it = [
       ['Comprimento × largura × pé-direito', f.num(e.geo.C, 2) + ' × ' + f.num(e.geo.W, 2) + ' × ' + f.num(e.geo.H, 2) + ' m'],
       ['Altura de instalação / montagem', f.num(e.geo.Hinst, 2) + ' m / ' + (e.geo.montagem === 'forro' ? 'rente ao forro' : 'suspenso, alcance × 0,707 (ASHRAE Fundamentals 2021, p. 20.7, l. 20)') +
         (e.familias.ATVAT || e.familias.AHAF ? '; grelha de parede ' + (e.geo.montagemGrelha === 'afastada' ? 'afastada do forro, alcance × 0,71 (TROX C1-006, p. 3)' : 'junto ao forro') : '')],
       ['Zona ocupada (NBR 16401-2, p. 8, l. 11)', 'até ' + f.num(a.zo, 2) + ' m (' + POSTURA[e.geo.postura] + '); paredes externas: ' + (ext.length ? ext.join(', ') : 'nenhuma') + '; recuos ' + recuosTxt(a)],
-      ['Vazão de insuflamento', f.num(a.Q, 0) + ' m³/h (' + (e.ar.modo === 'carga' ? 'calor sensível do ambiente ' + f.num(e.ar.qs, 0) + ' W' : 'informada') + ')'],
-      ['ΔT de insuflamento / temperatura operativa / umidade relativa / altitude', f.num(e.ar.dT, 1) + ' °C / ' + f.num(a.to, 1) + ' °C (NBR 16401-1, p. 12, l. 6) / ' + f.num(a.ur, 0) + ' % / ' + f.num(e.ar.z, 0) + ' m'],
-      ['Vazão de retorno', f.num(e.ar.retornoPct, 0) + ' % = ' + f.num(a.Qret, 0) + ' m³/h; grelhas: ' + rf.nome + '; ' + (e.retorno.tipo === 'plenum' ? 'retorno por plenum' : 'retorno dutado') + (e.retorno.modular ? '; forro modular 625 mm' : '')],
+      ['Vazão de insuflamento', f.num(a.Q, 0) + ' m³/h (' + (e.ar.modo === 'carga' ? 'calor sensível do ambiente ' + f.num(e.ar.qs, 0) + ' W' : (vent ? 'vazões da ventilação' : 'informada')) + ')'],
+      ['ΔT de insuflamento / temperatura operativa / umidade relativa / altitude', (soE ? 'sem insuflamento' : (a.isotermico ? 'ar insuflado isotérmico (à temperatura do ambiente)' : f.num(e.ar.dT, 1) + ' °C')) + ' / ' + f.num(a.to, 1) + ' °C (NBR 16401-1, p. 12, l. 6) / ' + f.num(a.ur, 0) + ' % / ' + f.num(e.ar.z, 0) + ' m'],
+      vent ? ['Vazão de ' + X.nome, f.num(a.Qret, 0) + ' m³/h; grelhas: ' + rf.nome + '; ' + (e.retorno.tipo === 'plenum' ? X.nome + ' por plenum' : X.dutado) + (e.retorno.modular ? '; forro modular 625 mm' : '')]
+        : ['Vazão de retorno', f.num(e.ar.retornoPct, 0) + ' % = ' + f.num(a.Qret, 0) + ' m³/h; grelhas: ' + rf.nome + '; ' + (e.retorno.tipo === 'plenum' ? 'retorno por plenum' : 'retorno dutado') + (e.retorno.modular ? '; forro modular 625 mm' : '')],
       ['Aplicação', (D.dados.normas.nbr10152.porId(e.crit.aplicacao) || { nome: '—' }).nome + ' — velocidade na boca: ' + cl.nome + ' (' + f.num(cl.min, 1) + '–' + f.num(cl.max, 1) + ' m/s)'],
       ['Limites', 'ruído ' + f.num(e.crit.dbaMax, 0) + ' dB(A) (' + origemRuido(e) + '); perda de carga máxima ' + f.num(e.crit.dpMax * PA, 1) + ' Pa (' + f.num(e.crit.dpMax, 2) + ' mmCA); velocidade do ar na zona ocupada: ' +
         (e.crit.vzoModo === 'projeto' ? 'limite de projeto ' + f.num(e.crit.vzoMax, 2) + ' m/s' : 'pela temperatura operativa (NBR 16401-2, p. 21, l. 25)') + (e.crit.controleLocal ? '; ocupantes com controle local da velocidade (6.3.2.3)' : '')],
       ['Regulagem / registro / acessório / acústica do ambiente', (e.crit.regulagemRamal ? 'registro no ramal' : 'sem registro no ramal') + ' / ' + regTxt(e) + ' / ' + e.crit.acessorio + ' / ' + e.crit.tratamento],
-      ['Famílias consideradas', Object.keys(e.familias).filter(function (k) { return e.familias[k]; }).join(', ') + ' · retorno: ' + Object.keys(e.retorno.familias).filter(function (k) { return e.retorno.familias[k]; }).join(', ')]
+      ['Famílias consideradas', (soE ? '' : Object.keys(e.familias).filter(function (k) { return e.familias[k]; }).join(', ') + ' · ') + X.nome + ': ' + Object.keys(e.retorno.familias).filter(function (k) { return e.retorno.familias[k]; }).join(', ')]
     ];
     return tabCV(it.map(function (r) { return linhaCV(r[0], esc(r[1])); }));
   }
+
+  // v3.6.0: nome da saída de ar (retorno ou exaustão), pelo papel que o motor gravou no ambiente
+  function sai(a) {
+    return a && a.papelSaida === 'exaustao' ? { exa: true, nome: 'exaustão', Cap: 'Exaustão', doDa: 'da exaustão', o: 'a', dutado: 'exaustão dutada' }
+      : { exa: false, nome: 'retorno', Cap: 'Retorno', doDa: 'do retorno', o: 'o', dutado: 'retorno dutado' };
+  }
+  function soExaustao(v) { return !!(v && v.r && v.r.res && v.r.e.ar.modo === 'ventilacao' && !(v.r.res.amb.Q > 0)); }
 
   // v3.3.4 (pedido do Francisco, 2026-11-17: memorial só com contas, resultados e fontes): na folha, a 2ª linha das
   // verificações fica só com dado (Ez, número de grelhas, limite acústico) e o limite perde a qualificação; a tela Seleção mantém tudo
@@ -7627,13 +7970,13 @@ window.HVAC = window.HVAC || {};
   }
 
   // Balanceamento: n bocas, faixa de TAB e registro no ramal (NBR 16401-1, p. 38, l. 16 e p. 22, l. 19)
-  function subBalanceamento(v, n) {
-    var e = v.r.e, a = v.r.res.amb, s = v.sup, r = v.ret, tol = D.dados.normas.nbr16401_1.tab.tolerancia, l = [];
+  function subBalanceamento(v, n, k) {
+    var e = v.r.e, a = v.r.res.amb, s = v.sup, r = v.ret, tol = D.dados.normas.nbr16401_1.tab.tolerancia, l = [], X = sai(a);
     function faixa(q) { return 'faixa de TAB ±' + f.num(tol * 100, 0) + ' %: ' + f.num(q * (1 - tol), 0) + ' a ' + f.num(q * (1 + tol), 0) + ' m³/h (NBR 16401-1, p. 38, l. 16)'; }
     if (s) l.push(linhaCV('Insuflamento', esc(s.n + (s.n === 1 ? ' boca' : ' bocas') + ' de ' + f.num(s.Qp, 0) + ' m³/h; ' + faixa(s.Qp) + '; registro no ramal: ' + (e.crit.regulagemRamal ? 'previsto' : 'não previsto') + ' (NBR 16401-1, p. 29, l. 32)')));
-    if (r && a.Qret > 0) l.push(linhaCV('Retorno', esc(r.n + (r.n === 1 ? ' grelha' : ' grelhas') + ' de ' + f.num(r.Qp, 0) + ' m³/h; ' + faixa(r.Qp) +
+    if (r && a.Qret > 0) l.push(linhaCV(X.Cap, esc(r.n + (r.n === 1 ? ' grelha' : ' grelhas') + ' de ' + f.num(r.Qp, 0) + ' m³/h; ' + faixa(r.Qp) +
       (e.retorno.tipo === 'plenum' ? '; regulagem na própria grelha (NBR 16401-1, p. 22, l. 19)' : '; registro no ramal (NBR 16401-1, p. 29, l. 32)'))));
-    return subtitulo(n, 8, 'Balanceamento') + tabCV(l);
+    return subtitulo(n, k || 8, 'Balanceamento') + tabCV(l);
   }
 
   // ---------------------------------------------------------------- bases e premissas
@@ -7709,8 +8052,8 @@ window.HVAC = window.HVAC || {};
       if (typeof i === 'number' && k !== i) return;
       var r = ESC.resolver(amb, E.projeto).r, res = r.res, nome = nomeDe(amb);
       if (!res) return;
-      res.insuflamento.forEach(function (s, j) { lin.push([nome, j + 1, 'Insuflamento', s.titulo, s.n, F.num(s.Qp, 0), F.num(s.vFace, 2), F.num(s.dp, 2), F.num(s.ln, 1), F.num(s.lp, 1), F.num(s.xMin, 2), F.num(s.xMax, 2), F.num(s.t50L, 2), F.num(s.vzo, 3), F.num(s.draft, 1), F.num(s.ez.valor, 1), '', S.SELO[s.selo], F.num(s.indice.total, 1), S.motivos(s)]); });
-      res.retorno.forEach(function (s, j) { lin.push([nome, j + 1, 'Retorno', s.titulo, s.n, F.num(s.Qp, 0), F.num(s.vFace, 2), F.num(s.dp, 2), F.num(s.ln, 1), F.num(s.lp, 1), '', '', '', '', '', F.num(s.ez.valor, 1), F.num(s.vJato, 2), S.SELO[s.selo], F.num(s.indice.total, 1), S.motivos(s)]); });
+      res.insuflamento.forEach(function (s, j) { lin.push([nome, j + 1, 'Insuflamento', s.titulo, s.n, F.num(s.Qp, 0), F.num(s.vFace, 2), F.num(s.dp, 2), F.num(s.ln, 1), F.num(s.lp, 1), F.num(s.xMin, 2), F.num(s.xMax, 2), F.num(s.t50L, 2), F.num(s.vzo, 3), F.num(s.draft, 1), s.ez ? F.num(s.ez.valor, 1) : '', '', S.SELO[s.selo], F.num(s.indice.total, 1), S.motivos(s)]); });
+      res.retorno.forEach(function (s, j) { lin.push([nome, j + 1, s.papel === 'exaustao' ? 'Exaustão' : 'Retorno', s.titulo, s.n, F.num(s.Qp, 0), F.num(s.vFace, 2), F.num(s.dp, 2), F.num(s.ln, 1), F.num(s.lp, 1), '', '', '', '', '', s.ez ? F.num(s.ez.valor, 1) : '', F.num(s.vJato, 2), S.SELO[s.selo], F.num(s.indice.total, 1), S.motivos(s)]); });
     });
     var txt = String.fromCharCode(65279) + lin.map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(sep); }).join('\r\n');
     D.util.projeto.baixar('alternativas-difusores.csv', txt, 'text/csv;charset=utf-8');
@@ -7724,7 +8067,7 @@ window.HVAC = window.HVAC || {};
     var amb = E.ambientes[i], s = v.sup, rt = v.ret, a = v.r.res.amb, e = v.r.e, comRet = !!(rt && typeof rt.lpTotal === 'number');
     var dpMaxPa = ok(amb.crit.dpMaxPa) ? amb.crit.dpMaxPa : e.crit.dpMax * PA;
     var nRuido = '<span data-g="' + (comRet ? 'lp_total' : 'ins_lp') + '">' + f.num(TS.ruido(v), 1) + '</span> dB(A)';
-    var apRuido = 'limite ' + f.num(e.crit.dbaMax, 0) + ' dB(A) · ' + (comRet ? 'insuflamento <span data-g="ins_lp">' + f.num(s.lp, 1) + '</span> + retorno <span data-g="ret_lp">' + f.num(rt.lp, 1) + '</span>' : 'só insuflamento');
+    var apRuido = 'limite ' + f.num(e.crit.dbaMax, 0) + ' dB(A) · ' + (comRet ? 'insuflamento <span data-g="ins_lp">' + f.num(s.lp, 1) + '</span> + ' + sai(a).nome + ' <span data-g="ret_lp">' + f.num(rt.lp, 1) + '</span>' : 'só insuflamento');
     var t50 = s.t50LMax - s.t50L > 1e-9
       ? '<span data-g="ins_t50L">' + f.num(s.t50L, 2) + '</span> a <span data-g="ins_t50LMax">' + f.num(s.t50LMax, 2) + '</span>'
       : '<span data-g="ins_t50L" data-g2="ins_t50LMax">' + f.num(s.t50L, 2) + '</span>';
@@ -7741,20 +8084,33 @@ window.HVAC = window.HVAC || {};
       linhaCV('Velocidade do ar na zona ocupada', '<span data-g="ins_vzo">' + f.num(s.vzo, 2) + '</span> m/s · direção ' + esc(s.vzoDir) + ' · ' + esc(P.limiteVzoTxt(a))),
       linhaCV('Alcance a 0,25 m/s ÷ comprimento característico (T50/L)', t50 + ' · ' + apT50)
     ];
-    if (a.Qret <= 0) L.push(linhaCV('Retorno', 'sem vazão de retorno'));
-    else if (!rt) L.push(linhaCV('Retorno', 'nenhuma grelha das famílias marcadas atende ao domínio publicado para ' + f.num(a.Qret, 0) + ' m³/h com até ' + D.motor.config.retorno.maxPecas + ' grelhas'));
-    else {
-      L.push(linhaCV('Retorno', esc(P.retTxt(rt)) + ', ' + esc(P.minuscula(rt.faixaFace.nome)) + (v.retAdotada ? ' · adotada por você' : ' · 1ª opção de retorno') + (v.retAjustada ? '; posições ajustadas na planta' : '')));
-      L.push(linhaCV('Situação do retorno', '<span data-g="ret_selo">' + esc(SELO[rt.selo] || rt.selo) + '</span>'));
-      L.push(linhaCV('Vazão por grelha', f.num(rt.Qp, 0) + ' m³/h (' + f.num(rt.Qp / 3.6, 0) + ' L/s) · ' + rt.n + (rt.n === 1 ? ' grelha' : ' grelhas')));
-      L.push(linhaCV('Velocidade de face', '<span data-g="ret_vFace">' + f.num(rt.vFace, 2) + '</span> m/s · área bruta ' + f.num(rt.areaBruta, 3) + ' m² · recomendado ≤ ' + f.num(rt.faixaFace.max, 1)));
-      L.push(linhaCV('Perda de carga do retorno', '<span data-g="ret_dp_pa">' + f.num(rt.dp * PA, 1) + '</span> Pa (<span data-g="ret_dp">' + f.num(rt.dp, 2) + '</span> mmCA)'));
-      L.push(linhaCV('Ruído do retorno no ambiente', P.dB(rt.lp)));
-    }
+    L = L.concat(linhasSaida(v));
     var h = subtitulo(n, 1, 'Solução adotada') + tabCV(L);
     if (v.r.res.semAprovada) h += '<p class="aviso-m">' + esc(v.r.res.semAprovada.texto) + '</p>';
     h += '<span hidden data-g="ins_familia">' + esc(ESC.familiaDe(s.cand)) + '</span><span hidden data-g="ins_tam">' + esc(s.cand.familia === 'ADE' ? s.cand.ab + 'x' + s.cand.comp : String(s.cand.tam)) + '</span>' +
       '<span hidden data-g="ins_n">' + s.n + '</span><span hidden data-g="ins_indice">' + f.num(s.indice.total, 0) + '</span>';
+    if (rt) h += '<span hidden data-g="ret_n">' + rt.n + '</span><span hidden data-g="ret_HxL">' + rt.H + 'x' + rt.L + '</span><span hidden data-g="ret_familia">' + esc(rt.cand.familia) + '</span><span hidden data-g="ret_indice">' + f.num(rt.indice.total, 0) + '</span>';
+    return h;
+  }
+
+  // Linhas da saída de ar na solução adotada (retorno ou, v3.6.0, exaustão)
+  function linhasSaida(v) {
+    var rt = v.ret, a = v.r.res.amb, X = sai(a), L = [];
+    if (a.Qret <= 0) L.push(linhaCV(X.Cap, 'sem vazão de ' + X.nome));
+    else if (!rt) L.push(linhaCV(X.Cap, 'nenhuma grelha das famílias marcadas atende ao domínio publicado para ' + f.num(a.Qret, 0) + ' m³/h com até ' + D.motor.config.retorno.maxPecas + ' grelhas'));
+    else {
+      L.push(linhaCV(X.Cap, esc(P.retTxt(rt)) + ', ' + esc(P.minuscula(rt.faixaFace.nome)) + (v.retAdotada ? ' · adotada por você' : ' · 1ª opção de ' + X.nome) + (v.retAjustada ? '; posições ajustadas na planta' : '')));
+      L.push(linhaCV('Situação ' + X.doDa, '<span data-g="ret_selo">' + esc(SELO[rt.selo] || rt.selo) + '</span>'));
+      L.push(linhaCV('Vazão por grelha', f.num(rt.Qp, 0) + ' m³/h (' + f.num(rt.Qp / 3.6, 0) + ' L/s) · ' + rt.n + (rt.n === 1 ? ' grelha' : ' grelhas')));
+      L.push(linhaCV('Velocidade de face', '<span data-g="ret_vFace">' + f.num(rt.vFace, 2) + '</span> m/s · área bruta ' + f.num(rt.areaBruta, 3) + ' m² · recomendado ≤ ' + f.num(rt.faixaFace.max, 1)));
+      L.push(linhaCV('Perda de carga ' + X.doDa, '<span data-g="ret_dp_pa">' + f.num(rt.dp * PA, 1) + '</span> Pa (<span data-g="ret_dp">' + f.num(rt.dp, 2) + '</span> mmCA)'));
+      L.push(linhaCV('Ruído ' + X.doDa + ' no ambiente', P.dB(rt.lp)));
+    }
+    return L;
+  }
+  // Só exaustão (v3.6.0): a solução adotada é a grelha de exaustão
+  function subRespostaExa(v, n) {
+    var rt = v.ret, h = subtitulo(n, 1, 'Solução adotada') + tabCV([linhaCV('Insuflamento', 'Sem insuflamento: o ambiente só tem exaustão.')].concat(linhasSaida(v)));
     if (rt) h += '<span hidden data-g="ret_n">' + rt.n + '</span><span hidden data-g="ret_HxL">' + rt.H + 'x' + rt.L + '</span><span hidden data-g="ret_familia">' + esc(rt.cand.familia) + '</span><span hidden data-g="ret_indice">' + f.num(rt.indice.total, 0) + '</span>';
     return h;
   }
@@ -7789,23 +8145,24 @@ window.HVAC = window.HVAC || {};
       }).join('') + '</tbody></table>';
   }
 
-  function subRetorno(v, n) {
-    var rt = v.ret, a = v.r.res.amb, e = v.r.e, cfg = D.motor.config.retorno;
-    var h = subtitulo(n, 6, 'Retorno');
+  function subRetorno(v, n, k) {
+    var rt = v.ret, a = v.r.res.amb, e = v.r.e, cfg = D.motor.config.retorno, X = sai(a);
+    k = k || 6;
+    var h = subtitulo(n, k, X.Cap);
     if (!rt) return h + '<p>Nenhuma grelha das famílias marcadas atende ao domínio publicado para ' + f.num(a.Qret, 0) + ' m³/h com até ' + cfg.maxPecas + ' grelhas.</p>';
     var alto = !!(v.ctxRet && v.ctxRet.altoNivel && v.ctxRet.sup);
     var balanc = e.retorno.tipo === 'plenum' ? 'plenum; regulagem na própria grelha (NBR 16401-1, p. 22, l. 19)' :
       rt.n + ' ramal(is) iguais com registro (NBR 16401-1, p. 29, l. 32)';
     h += '<p><b>' + esc(P.retTxt(rt)) + '</b>, ' + esc(P.minuscula(rt.faixaFace.nome)) + ' · ' + sitTxt(rt) + ' · nota da solução ' + f.num(rt.indice.total, 1) + ' de 100</p>';
     h += tabCV([
-      linhaCV('Posição e tipo', esc(rt.faixaFace.nome) + ' · ' + (e.retorno.tipo === 'plenum' ? 'retorno por plenum' : 'retorno dutado, um ramal por grelha')),
+      linhaCV('Posição e tipo', esc(rt.faixaFace.nome) + ' · ' + (e.retorno.tipo === 'plenum' ? X.nome + ' por plenum' : X.dutado + ', um ramal por grelha')),
       linhaCV('Distribuição', (rt.grupos ? 'difusores atendidos por grelha: ' + esc(rt.grupos.join(' / ')) : 'sem difusores de referência') + (rt.maxDist != null ? ' · difusor mais afastado a ' + f.num(rt.maxDist, 2) + ' m da grelha mais próxima (limite ' + f.num(rt.dMax, 0) + ' m)' : '') + (rt.espMin != null ? ' · espaçamento mínimo entre grelhas ' + f.num(rt.espMin, 2) + ' m' : '')),
       linhaCV('Balanceamento', esc(balanc)), linhaCV('Fonte dos dados', esc(rt.fonte))]);
-    h += '<h4>Contas</h4>' + tabelaPassos(rt.rastro.passos, n + '.6') +
+    h += '<h4>Contas</h4>' + tabelaPassos(rt.rastro.passos, n + '.' + k) +
       '<h4>Verificações</h4>' + emTexto(P.tabelaVerifs(verifsFolha(rt.verifs), e)) +
       '<h4>Nota da solução, parcela a parcela</h4>' + tabelaIndice(rt.indice);
     if (v.retLista.length > 1) {
-      h += '<h4>Alternativas de retorno</h4><table class="sel-tab"><thead><tr><th>Solução</th><th class="num">Vazão por grelha</th><th class="num">Velocidade de face</th><th class="num">Perda de carga</th><th class="num">Ruído do retorno</th><th class="num">Área por grelha</th>' +
+      h += '<h4>Alternativas de ' + X.nome + '</h4><table class="sel-tab"><thead><tr><th>Solução</th><th class="num">Vazão por grelha</th><th class="num">Velocidade de face</th><th class="num">Perda de carga</th><th class="num">Ruído ' + X.doDa + '</th><th class="num">Área por grelha</th>' +
         (alto ? '<th class="num">Jato na grelha</th>' : '') + '<th>Situação</th><th class="num">Nota da solução</th></tr></thead><tbody>' + v.retLista.map(function (x) {
           var adot = ESC.sRet(x.cand) === ESC.sRet(rt.cand);
           return '<tr' + (adot ? ' class="adotada"' : '') + '><td>' + esc(x.titulo) + (adot ? '<div class="sub">adotada</div>' : '') + '</td><td class="num">' + P.vaz(x.Qp) + '</td><td class="num">' + f.num(x.vFace, 2) + ' m/s</td><td class="num">' + P.dpTxt(x.dp) + '</td><td class="num">' + P.dB(x.lp) +
@@ -7815,15 +8172,22 @@ window.HVAC = window.HVAC || {};
     return h;
   }
 
-  function subPlanta(v, n) {
+  function subPlanta(v, n, k) {
     var s = v.sup, a = v.r.res.amb, PL = H.ui.planta3;
-    return subtitulo(n, 7, 'Planta') + '<p class="nota">' + f.num(a.C, 2) + ' × ' + f.num(a.W, 2) + ' m · ' + f.num(a.area, 1) + ' m²</p><div class="planta">' + PL.svg(s, v.ret, a, v.ctxRet, false) + PL.legenda(s, v.ret, a, v.ctxRet) + '</div>' + PL.tabelaCoordenadas(s, v.ret, a, v.ctxRet);
+    return subtitulo(n, k || 7, 'Planta') + '<p class="nota">' + f.num(a.C, 2) + ' × ' + f.num(a.W, 2) + ' m · ' + f.num(a.area, 1) + ' m²</p><div class="planta">' + PL.svg(s, v.ret, a, v.ctxRet, false) + PL.legenda(s, v.ret, a, v.ctxRet) + '</div>' + PL.tabelaCoordenadas(s, v.ret, a, v.ctxRet);
   }
 
   function secaoAmbiente(E, i, num) {
     var amb = E.ambientes[i], v = ESC.resolver(amb, E.projeto), r = v.r, s = v.sup, h = '<h2>' + num + '. ' + esc(nomeDe(amb)) + '</h2>';
     if (nPend(r)) {
       return h + '<p><b>Para selecionar, falta:</b></p>' + lista(Object.keys(r.erros).map(function (k) { return '<b>' + esc(AD.ROTULO[k] || k) + '</b>: ' + esc(r.erros[k]); }));
+    }
+    if (!s && soExaustao(v)) {
+      var eX = r.e, aX = r.res.amb;
+      h += subRespostaExa(v, num) + subtitulo(num, 2, 'Dados de entrada') + entradasTabela(eX, aX) +
+        subtitulo(num, 3, 'Ambiente, zona ocupada e limites') + tabelaPassos(r.res.rastroAmb.passos, num + '.3');
+      if (aX.Qret > 0) h += subRetorno(v, num, 4);
+      return h + subPlanta(v, num, aX.Qret > 0 ? 5 : 4) + subBalanceamento(v, num, aX.Qret > 0 ? 6 : 5);
     }
     if (!s) {
       var erros = r.avisos.filter(function (x) { return x.nivel === 'erro'; });
@@ -7845,10 +8209,11 @@ window.HVAC = window.HVAC || {};
   // ---------------------------------------------------------------- resumo e quantitativo
   function secaoResumo(E, indices, num) {
     var linhas = indices.map(function (i) {
-      var amb = E.ambientes[i], v = ESC.resolver(amb, E.projeto), s = v.sup, rt = v.ret, a = v.r.res ? v.r.res.amb : null;
+      var amb = E.ambientes[i], v = ESC.resolver(amb, E.projeto), s = v.sup, rt = v.ret, a = v.r.res ? v.r.res.amb : null, X = sai(a);
+      if (!s && soExaustao(v)) return '<tr><td>' + esc(nomeDe(amb)) + '</td><td colspan="4">Sem insuflamento: o ambiente só tem exaustão.</td><td>' + (rt ? esc(P.retTxt(rt)) : 'sem grelha') + '</td><td>' + (rt ? sitTxt(rt) : '') + '</td><td>' + (v.retAdotada ? 'adotada por você' : '1ª opção do app') + '</td></tr>';
       if (!s) return '<tr><td>' + esc(nomeDe(amb)) + '</td><td colspan="7">' + esc(P.opcaoTxt(v.r)) + '</td></tr>';
       return '<tr><td>' + esc(nomeDe(amb)) + '</td><td>' + esc(AD.rotuloSolucao(s)) + '</td><td class="num">' + P.vaz(s.Qp) + '</td><td class="num">' + P.dB(TS.ruido(v)) + '</td><td class="num">' + P.dpTxt(s.dp) + '</td>' +
-        '<td>' + (a && a.Qret <= 0 ? 'sem retorno' : (rt ? esc(P.retTxt(rt)) : 'sem grelha')) + '</td><td>' + sitTxt(s) + '</td><td>' + (v.adotada ? 'adotada por você' : '1ª opção do app') + '</td></tr>';
+        '<td>' + (a && a.Qret <= 0 ? 'sem ' + X.nome : (rt ? esc(P.retTxt(rt)) : 'sem grelha')) + '</td><td>' + sitTxt(s) + '</td><td>' + (v.adotada ? 'adotada por você' : '1ª opção do app') + '</td></tr>';
     }).join('');
     var q = EM.quantitativo({ projeto: E.projeto, ambientes: indices.map(function (i) { return E.ambientes[i]; }) });
     function grupo(titulo, itens, rotuloTotal, total) {
@@ -7856,9 +8221,9 @@ window.HVAC = window.HVAC || {};
         (itens.length ? itens.map(function (x) { return '<tr><td>' + esc(x.item) + '</td><td class="num">' + x.n + '</td><td>' + esc(x.ambientes.join(', ')) + '</td></tr>'; }).join('') : '<tr><td colspan="3"><span class="sub">nenhum</span></td></tr>') +
         '<tr class="total-q"><td><b>' + rotuloTotal + '</b></td><td class="num"><b>' + total + '</b></td><td></td></tr>';
     }
-    return '<h2>' + num + '. Resumo do projeto</h2><table class="sel-tab"><thead><tr><th>Ambiente</th><th>Solução adotada</th><th class="num">Vazão por peça</th><th class="num">Ruído no ambiente</th><th class="num">Perda de carga</th><th>Retorno</th><th>Situação</th><th>Origem</th></tr></thead><tbody>' + linhas + '</tbody></table>' +
+    return '<h2>' + num + '. Resumo do projeto</h2><table class="sel-tab"><thead><tr><th>Ambiente</th><th>Solução adotada</th><th class="num">Vazão por peça</th><th class="num">Ruído no ambiente</th><th class="num">Perda de carga</th><th>' + (q.exa.length ? 'Retorno ou exaustão' : 'Retorno') + '</th><th>Situação</th><th>Origem</th></tr></thead><tbody>' + linhas + '</tbody></table>' +
       '<h3>Quantitativo</h3><table class="sel-tab"><thead><tr><th>Item</th><th class="num">Peças</th><th>Ambientes</th></tr></thead><tbody>' +
-      grupo('Insuflamento', q.ins, 'Total de difusores', q.totalIns) + grupo('Retorno', q.ret, 'Total de grelhas', q.totalRet) + '</tbody></table>' +
+      grupo('Insuflamento', q.ins, 'Total de difusores', q.totalIns) + grupo('Retorno', q.ret, 'Total de grelhas', q.totalRet) + (q.exa.length ? grupo('Exaustão', q.exa, 'Total de grelhas de exaustão', q.totalExa) : '') + '</tbody></table>' +
       (q.semSolucao.length ? '<p class="nota">Sem solução, fora do quantitativo: ' + esc(q.semSolucao.join(', ')) + '.</p>' : '');
   }
 
@@ -7928,6 +8293,8 @@ window.HVAC = window.HVAC || {};
     if (lista === 'qtd') { x = ESC.porQuantidade(amb, E.projeto)[i]; return x ? x.s.cand : null; }
     return null;
   }
+  // v3.6.0: ambiente do modo ventilação sem insuflamento (só exaustão): a "solução" é a grelha de exaustão
+  function soExaustao(v) { return !!(v && v.r && v.r.res && v.r.e.ar.modo === 'ventilacao' && !(v.r.res.amb.Q > 0)); }
   function txtDelta(d) { if (!d || isNaN(d)) return ''; return plural(Math.abs(d), 'peça', 'peças') + (d < 0 ? ' a menos' : ' a mais'); }
 
   /* Planta da Seleção: a casca redesenha a tela inteira e chama depoisDeDesenhar (H.app) ao terminar; o arraste é ligado aqui, toda vez
@@ -7938,7 +8305,7 @@ window.HVAC = window.HVAC || {};
     if (alvo.getAttribute('data-ligada')) return;
     alvo.setAttribute('data-ligada', '1');
     var E = proj(), amb = E.ambientes[+alvo.getAttribute('data-amb')], v = amb ? ESC.resolver(amb, E.projeto) : null;
-    if (!v || !v.sup) return;
+    if (!v || !(v.sup || (v.ret && soExaustao(v)))) return;   // só exaustão (v3.6.0): arrastam-se só as grelhas
     H.ui.planta3.ligarArraste(alvo, v.sup, v.r.res.amb,
       function (idx, x, y) { if (ESC.mover(amb, E.projeto, idx, x, y)) K.guardar(); K.desenhar(); },
       v.ret ? function (idx, x, y) { if (ESC.moverRet(amb, E.projeto, idx, x, y)) K.guardar(); K.desenhar(); } : null);
@@ -7986,6 +8353,34 @@ window.HVAC = window.HVAC || {};
       arquivoTxt: String(nome).replace(/\.json$/i, '').replace(/[^\wÀ-ú]+/g, '_') + '_relatorio_importacao_ct.txt', manter: mudar });
     if (mudar) location.hash = '#/ambientes'; else K.desenhar();
   }
+  // v3.6.0: importação das vazões do app de Ventilação (D.util.importaVent), no mesmo caminho da carga térmica
+  function importarVent(texto, nome) {
+    var E = proj(), obj, r, mudar, TIT = 'Importação da ventilação';
+    try { obj = JSON.parse(texto); } catch (e) { obj = undefined; r = { ok: false, ambientes: [], relatorio: [], versaoOrigem: 0, motivo: 'O arquivo não é um JSON válido (' + e.message + ').' }; }
+    if (!r) r = D.util.importaVent.importar(obj, E);
+    if (!r.ok) { recusarCT(janelaCT(TIT, nome, '<p>' + esc(r.motivo) + '</p>')); return; }
+    r.ambientes.forEach(function (a) { E.ambientes.push(a); });
+    K.guardar();
+    mudar = location.hash !== '#/ambientes';
+    K.relatorio({ titulo: TIT, nome: nome, resumo: plural(r.ambientes.length, 'ambiente acrescentado', 'ambientes acrescentados'),
+      linhas: r.relatorio, texto: D.util.importaVent.texto(r, nome),
+      arquivoTxt: String(nome).replace(/\.json$/i, '').replace(/[^\wÀ-ú]+/g, '_') + '_relatorio_importacao_ventilacao.txt', manter: mudar });
+    if (mudar) location.hash = '#/ambientes'; else K.desenhar();
+  }
+  // Campo de arquivo próprio para as duas importações (carga térmica e ventilação)
+  function escolherJson(fn) {
+    var campo = document.createElement('input');
+    campo.type = 'file'; campo.accept = '.json,application/json'; campo.style.display = 'none';
+    campo.addEventListener('change', function () {
+      var arq = campo.files && campo.files[0];
+      if (!arq) { campo.remove(); return; }
+      var leitor = new FileReader();
+      leitor.onload = function () { fn(String(leitor.result).replace(/^﻿/, ''), arq.name); campo.remove(); };
+      leitor.readAsText(arq);
+    });
+    document.body.appendChild(campo);
+    campo.click();
+  }
   function base64Utf8(b64) {
     var bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/')), pct = '', i;
     for (i = 0; i < bin.length; i++) pct += '%' + ('0' + bin.charCodeAt(i).toString(16)).slice(-2);
@@ -8016,7 +8411,7 @@ window.HVAC = window.HVAC || {};
       { r: 'projeto', t: 'Projeto', s: function (E) { return E.projeto.responsavel ? 'altitude ' + f.num(E.projeto.altitude, 0) + ' m' : 'falta o responsável'; }, pend: function (E) { return !E.projeto.responsavel; } },
       { r: 'ambientes', t: 'Ambientes', s: function (E, R) { var n = R.amb.filter(nPend).length; return plural(E.ambientes.length, 'ambiente', 'ambientes') + (n ? ' · ' + n + ' a completar' : ''); },
         pend: function (E, R) { return R.amb.some(nPend); } },
-      { r: 'selecao', t: 'Seleção', s: function (E) { var n = E.ambientes.filter(function (a, i) { var s = adotada(E, i).sup; return s && s.selo !== 'reprovado'; }).length; return n + ' de ' + E.ambientes.length + ' com solução aprovada'; } },
+      { r: 'selecao', t: 'Seleção', s: function (E) { var n = E.ambientes.filter(function (a, i) { var v = adotada(E, i), s = v.sup || (soExaustao(v) ? v.ret : null); return s && s.selo !== 'reprovado'; }).length; return n + ' de ' + E.ambientes.length + ' com solução aprovada'; } },
       { r: 'memorial', t: 'Memorial', s: function (E) { return 'revisão ' + E.projeto.revisao; } }
     ],
 
@@ -8036,13 +8431,14 @@ window.HVAC = window.HVAC || {};
         var r = R.amb[U.amb], v = adotada(E, U.amb), s = v.sup, falta = Object.keys(r.erros).map(function (k) { return (AD.ROTULO[k] || k).toLowerCase(); });
         var link = { href: '#/selecao/' + U.amb, texto: 'Ver seleção' }, rot = v.adotada ? 'Adotada por você' : '1ª opção';
         if (falta.length) return { itens: [{ rotulo: 'Seleção', valor: 'a completar: ' + falta.join(', ') }], delta: '', link: null };
+        if (!s && soExaustao(v)) return { itens: [{ rotulo: 'Exaustão', valor: v.ret ? TS.pecas.retTxt(v.ret) : 'sem grelha' }].concat(v.ret ? [{ rotulo: 'Situação', valor: SELO[v.ret.selo] || v.ret.selo, sec: true }] : []), delta: '', link: link };
         if (!s) return { itens: [{ rotulo: '1ª opção', valor: 'nenhuma combinação das famílias marcadas' }], delta: '', link: link };
         return { itens: [{ rotulo: rot, valor: AD.rotuloSolucao(s) }, { rotulo: 'Vazão por peça', valor: f.num(s.Qp, 0) + ' m³/h' },
           { rotulo: 'Ruído no ambiente', valor: f.num(TS.ruido(v), 1) + ' dB(A)', sec: true }, { rotulo: 'Situação', valor: SELO[s.selo] || s.selo, sec: true }],
           delta: txtDelta(U.delta), link: link };
       }
       var pecas = 0, vazao = 0, ok = 0, alguma = false;
-      R.amb.forEach(function (x, i) { var v = adotada(E, i), s = v.sup; if (s) { pecas += s.n; if (s.selo !== 'reprovado') ok++; if (v.adotada) alguma = true; } if (x.res) vazao += x.res.amb.Q; });
+      R.amb.forEach(function (x, i) { var v = adotada(E, i), s = v.sup; if (s) { pecas += s.n; if (s.selo !== 'reprovado') ok++; if (v.adotada) alguma = true; } else if (soExaustao(v) && v.ret && v.ret.selo !== 'reprovado') ok++; if (x.res) vazao += x.res.amb.Q; });
       return { itens: [{ rotulo: 'Ambientes', valor: String(E.ambientes.length) }, { rotulo: 'Com solução aprovada', valor: ok + ' de ' + E.ambientes.length },
         { rotulo: alguma ? 'Difusores (solução adotada)' : 'Difusores (1ª opção)', valor: plural(pecas, 'peça', 'peças'), sec: true }, { rotulo: 'Vazão total', valor: f.num(vazao, 0) + ' m³/h', sec: true }],
         delta: txtDelta(U.delta), link: { href: '#/selecao', texto: 'Ver seleção' } };
@@ -8109,6 +8505,14 @@ window.HVAC = window.HVAC || {};
           var texto;
           try { texto = base64Utf8(decodeURIComponent(valor)); } catch (e) { recusarCT(janelaCT('Importação da carga térmica', '(parâmetro ?importar-ct=)', '<p>O parâmetro ?importar-ct= não contém um JSON em base64.</p>')); return; }
           importarCT(texto, '(parâmetro ?importar-ct=)');
+        }, 0);
+      },
+      // ?importar-vent=<base64 de um JSON em UTF-8>: idem, com a importação da ventilação (v3.6.0)
+      'importar-vent': function (valor) {
+        setTimeout(function () {
+          var texto;
+          try { texto = base64Utf8(decodeURIComponent(valor)); } catch (e) { recusarCT(janelaCT('Importação da ventilação', '(parâmetro ?importar-vent=)', '<p>O parâmetro ?importar-vent= não contém um JSON em base64.</p>')); return; }
+          importarVent(texto, '(parâmetro ?importar-vent=)');
         }, 0);
       }
     },
@@ -8187,9 +8591,11 @@ window.HVAC = window.HVAC || {};
         campo.click();
         return null;
       },
-      // Ambiente importado: grava no campo Largura a sugestão (área da carga térmica ÷ comprimento), pelo caminho de um campo digitado
+      // Ambientes: importar as vazões de um arquivo "Exportar vazões" do app de Ventilação (v3.6.0)
+      'importar-vent': function () { escolherJson(importarVent); return null; },
+      // Ambiente importado: grava no campo Largura a sugestão (área da carga térmica ou da ventilação ÷ comprimento), pelo caminho de um campo digitado
       'usar-largura': function (el) {
-        var x = ambDaAcao(el), w = x.amb ? D.util.importaCT.larguraSugerida(x.amb.areaCT, x.amb.geo.C) : null;
+        var x = ambDaAcao(el), A = x.amb ? (x.amb.areaCT > 0 ? x.amb.areaCT : x.amb.areaVent) : null, w = x.amb ? D.util.importaCT.larguraSugerida(A, x.amb.geo.C) : null;
         if (w !== null) K.alterar('amb.' + x.i + '.geo.W', function (t) { t.o[t.k] = w; });
         return null;
       },
