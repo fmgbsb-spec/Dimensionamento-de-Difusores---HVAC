@@ -30,7 +30,7 @@
 <title>Difusores TROX</title>
 <!-- Plataforma comum (_plataforma-hvac): tokens, base, componentes e folha do memorial. O build embute tudo no HTML único. -->
 <style>
-/* ==== plataforma v0.6.1: css/base.css ==== */
+/* ==== plataforma v0.7.0: css/base.css ==== */
 /* ---- importado: fontes.css ---- */
 /* Fontes embutidas (gerado por _plataforma-hvac\codigo\ferramentas\gera_fontes.py; não editar à mão).
    Arquivos woff2 do Google Fonts, subconjunto latin, sem alteração; letras fora dele usam a fonte seguinte da lista.
@@ -521,7 +521,7 @@ button.kpi-c:hover { border-color: var(--prim); }
 
 </style>
 <style>
-/* ==== plataforma v0.6.1: css/impressao.css ==== */
+/* ==== plataforma v0.7.0: css/impressao.css ==== */
 /* Plataforma HVAC: memorial em formato de folha e regras de impressão (o PDF sai pela impressão do navegador). */
 /* v0.5.0: a folha é papel e não flutua (sem sombra, só a borda); dentro dela ficam as fontes e os pesos da v0.4.1, para o PDF
    sair igual (a tela troca para IBM Plex; o memorial muda de fonte só numa etapa própria, com o Francisco) */
@@ -861,7 +861,7 @@ button.kpi-c:hover { border-color: var(--prim); }
 <body>
 <!-- Plataforma: página (topo, trilha, área da tela, faixa), namespace e formatação -->
 <script>
-/* ==== plataforma v0.6.1: js/interface/pagina.js ==== */
+/* ==== plataforma v0.7.0: js/interface/pagina.js ==== */
 /* Plataforma HVAC. Página comum: topo (marca, modo aprendizado, tema, comandos), trilha, área da tela, faixa de resultado,
    camada sobre a tela, campo de arquivo e captura de erro de JavaScript. Desde a v0.4.0, também o botão Menu, a barra de
    passos e o balão de dica do celular: nascem ocultos (base.css) e só aparecem em tela estreita.
@@ -870,7 +870,7 @@ button.kpi-c:hover { border-color: var(--prim); }
 window.HVAC = window.HVAC || {};
 (function (H) {
   'use strict';
-  H.plataforma = { versao: '0.6.1' };   // o build do app grava aqui a versão de _plataforma-hvac\codigo\VERSAO.txt
+  H.plataforma = { versao: '0.7.0' };   // o build do app grava aqui a versão de _plataforma-hvac\codigo\VERSAO.txt
 
   /* Erro de JavaScript fica visível na página (e aparece no teste automático) */
   window.onerror = function (msg, arq, linha) {
@@ -907,12 +907,12 @@ window.HVAC = window.HVAC || {};
 
 </script>
 <script>
-/* ==== plataforma v0.6.1: js/nucleo.js ==== */
+/* ==== plataforma v0.7.0: js/nucleo.js ==== */
 /* Namespace único do app. Módulos: dados (tabelas), util, motor (cálculo, sem DOM), ui (tela). */
 window.HVAC = window.HVAC || {};
 (function (H) {
   'use strict';
-  H.versao = '3.6.0';
+  H.versao = '3.10.0';
   H.dados = H.dados || {};
   H.util = H.util || {};
   H.motor = H.motor || {};
@@ -921,7 +921,7 @@ window.HVAC = window.HVAC || {};
 
 </script>
 <script>
-/* ==== plataforma v0.6.1: js/util/formatacao.js ==== */
+/* ==== plataforma v0.7.0: js/util/formatacao.js ==== */
 /* Formatação numérica (padrão brasileiro: vírgula decimal) e utilidades de texto. */
 (function (H) {
   'use strict';
@@ -979,7 +979,7 @@ window.HVAC = window.HVAC || {};
 (function (global) {
   'use strict';
   var D = global.Difusores || {};
-  D.versao = '3.6.0';
+  D.versao = '3.10.0';
   D.versaoBase = 'TROX C1-003, TROX C1-004, TROX C1-005, TROX C1-006, TROX C2-002, TROX C2-005, TROX C2-006, TROX C2-007, TROX C2-010 e 2/8/P/2 (05/2013); TROX 2/7/EN/6 (08/2008)';
   D.dados = D.dados || { trox: {}, normas: {} };
   D.util = D.util || {};
@@ -2357,6 +2357,9 @@ window.HVAC = window.HVAC || {};
  * Valores conferidos em 2026-10-05 com a ABNT NBR 10152:2017 (versão corrigida 2020), Tabela 3,
  * coluna RLAeq (seção 10). A norma admite tolerância de até 5 dB na avaliação (seção 10).
  * "Área técnica" não consta na Tabela 3: é valor de projeto (semNorma). O usuário pode editar o limite em cada ambiente.
+ * v3.7.0 (D10 da revisão E3, opção (a) do Francisco, 2026-11-24): "Centros cirúrgicos" 35 dB (Tabela 3, p. 12, Clínicas e
+ * hospitais); "Sanitários e chuveiros" não consta na Tabela 3: valor de projeto de 50 dB(A), o de "Áreas de serviço" (hotéis)
+ * e "Cozinhas e lavanderias" (p. 14).
  * vzo = velocidade máxima sugerida na zona ocupada por aplicação: prática de projeto (a NBR 16401-2 não traz limite por aplicação).
  * classeVel = classe de velocidade nas bocas de insuflamento (prática de projeto, ver bocas.js).
  * Limite de projeto: NBR 16401-1:2024, 7.4.1 remete os níveis de ruído internos à NBR 10152.
@@ -2380,10 +2383,12 @@ window.HVAC = window.HVAC || {};
       { id: 'quartoHospital', nome: 'Quartos individuais (clínicas e hospitais)', dba: 35, vzo: 0.20, classeVel: 'residencial' },
       { id: 'enfermaria', nome: 'Enfermarias (clínicas e hospitais)', dba: 40, vzo: 0.20, classeVel: 'residencial' },
       { id: 'consultorio', nome: 'Consultórios', dba: 35, vzo: 0.20, classeVel: 'residencial' },
+      { id: 'centroCirurgico', nome: 'Centros cirúrgicos (clínicas e hospitais)', dba: 35, vzo: 0.20, classeVel: 'residencial' },
       { id: 'restaurante', nome: 'Restaurantes', dba: 45, vzo: 0.25, classeVel: 'geral' },
       { id: 'loja', nome: 'Lojas (centros comerciais)', dba: 45, vzo: 0.25, classeVel: 'comercial' },
       { id: 'circulacao', nome: 'Circulações (centros comerciais, educacionais, escritórios)', dba: 50, vzo: 0.25, classeVel: 'geral' },
       { id: 'academia', nome: 'Ginásios de esportes e academias de ginástica', dba: 45, vzo: 0.25, classeVel: 'geral' },
+      { id: 'sanitario', nome: 'Sanitários e chuveiros (valor de projeto)', dba: 50, vzo: 0.25, classeVel: 'geral', semNorma: true },
       { id: 'tecnico', nome: 'Área técnica / industrial leve (valor de projeto)', dba: 55, vzo: 0.30, classeVel: 'comercial', semNorma: true },
       { id: 'estudio', nome: 'Estúdios de gravação audiovisual', dba: 25, vzo: 0.15, classeVel: 'estudio' }
     ],
@@ -2495,7 +2500,7 @@ window.HVAC = window.HVAC || {};
   D.dados.normas.bocas = {
     insuflamento: {
       fonteCurta: 'Prática de projeto; NBR 16401-1, p. 22, l. 26',   // v3.3.4: contas e verificações; a longa fica em Referências
-      fonte: 'Prática de projeto, sem documento: velocidades recomendadas por aplicação, atribuídas à NBR 6401 e ao ASHRAE Applications (ausentes da biblioteca: CONFERIR). Procuradas em toda a biblioteca em 2026-10-13 (Fundamentals 2021, Systems and Equipment 2016 e 2012, Design Manual for Hospitals and Clinics 2013, Titus, Price, Krueger) e não achadas. A NBR 16401-1, p. 22, l. 26, remete a seleção ao fabricante',
+      fonte: 'Prática de projeto, sem documento: velocidades recomendadas por aplicação, atribuídas à NBR 6401 e ao ASHRAE Applications (ausentes da biblioteca: CONFERIR). Procuradas em toda a biblioteca em 2026-10-13 (Fundamentals 2021, Systems and Equipment 2016 e 2012, Design Manual for Hospitals and Clinics 2013, Titus, Price, Krueger) e não achadas; procuradas de novo em 2026-11-24 (Fundamentals 2021, cap. 20, e Systems and Equipment 2016, cap. 20), sem tabela por aplicação. A NBR 16401-1, p. 22, l. 26, remete a seleção ao fabricante',
       conferir: true,
       classes: {
         estudio: { nome: 'Estúdios de rádio, TV e gravação', min: 1.5, max: 2.5 },
@@ -2515,7 +2520,7 @@ window.HVAC = window.HVAC || {};
       zonaLonge: { nome: 'Na zona ocupada, longe de assentos', min: 3.0, max: 4.0, reprova: true },
       zonaAssentos: { nome: 'Na zona ocupada, perto de assentos', min: 2.0, max: 3.0, reprova: true },
       veneziana: { nome: 'Veneziana de porta ou parede', min: 1.0, max: 1.5, reprova: true },
-      fonte: 'Velocidade de face do retorno por posição (área bruta): Krueger, p. a1-14, que a atribui ao ASHRAE Fundamentals 2001 (fonte secundária; o Fundamentals 2001 não está na biblioteca). Critérios do app: 4,0 m/s como máximo acima da zona ocupada (alerta), onde a fonte diz "acima de 800 fpm" (4,06 m/s); nota cheia de 1,5 a 2,5 m/s, faixa que no Design Manual for Hospitals and Clinics (2013), p. 192, é velocidade no núcleo de grelhas de UTI',
+      fonte: 'Velocidade de face do retorno por posição (área bruta): Krueger, p. a1-14, que a atribui ao ASHRAE Fundamentals 2001 (fonte secundária; o Fundamentals 2001 não está na biblioteca, e o Fundamentals 2021, cap. 20, não traz mais a tabela). Critérios do app: 4,0 m/s como máximo acima da zona ocupada (alerta), onde a fonte diz "acima de 800 fpm" (4,06 m/s); nota cheia de 1,5 a 2,5 m/s, faixa que no Design Manual for Hospitals and Clinics (2013), p. 192, é velocidade no núcleo de grelhas de UTI',
       conferir: false
     }
   };
@@ -2655,16 +2660,27 @@ window.HVAC = window.HVAC || {};
   }
 
   /* Eficácia da distribuição de ar Ez — NBR 16401-3:2024, Tabela 3.
-   * o = { aquecimento, dT (K, módulo), retornoAlto, v14 (m/s a 1,4 m do piso) } */
+   * o = { aquecimento, isotermico, dT (K, módulo), retornoAlto, posicaoRetorno (só para a nota), v14 (m/s a 1,4 m do piso) }
+   * v3.7.0 (D6 da revisão E3, opção (a) do Francisco, 2026-11-24): o ar isotérmico não é "frio" (não desce) e, sem serpentina,
+   * ainda ganha calor no ventilador e nos dutos: entra pelas linhas do ar quente a menos de 8 °C (dT = 0). */
   function ez(o, r) {
-    var t = D.dados.normas.nbr16401_3.ez, linha;
-    if (!o.aquecimento) linha = 'frioForro';
+    var t = D.dados.normas.nbr16401_3.ez, linha, quente = o.aquecimento || o.isotermico, dT = o.isotermico ? 0 : o.dT;
+    if (!quente) linha = 'frioForro';
     else if (!o.retornoAlto) linha = 'quenteForroRetPiso';
-    else if (o.dT >= t.dtLimite) linha = 'quente8ForroRetForro';
+    else if (dT >= t.dtLimite) linha = 'quente8ForroRetForro';
     else linha = (o.v14 != null && o.v14 >= t.vRef) ? 'quenteMenos8Rapido' : 'quenteMenos8Lento';
-    var l = t.linhas.filter(function (x) { return x.id === linha; })[0];
-    var res = { valor: l.valor, texto: l.texto, clausula: t.clausula, fonte: 'NBR 16401-3, p. 12, l. 9' };
-    if (r) r.passo({ grupo: 'zona', titulo: 'Eficácia da distribuição de ar (Ez)', formula: 'Tabela 3 — configuração insuflamento/retorno', subst: l.texto + (o.aquecimento && o.retornoAlto && o.dT < t.dtLimite ? ' (v a 1,4 m = ' + F.num(o.v14, 2) + ' m/s)' : ''), valor: l.valor, unidade: '', casas: 2, fonte: res.fonte });
+    var l = t.linhas.filter(function (x) { return x.id === linha; })[0], comV = quente && o.retornoAlto && dT < t.dtLimite;
+    var res = { valor: l.valor, texto: l.texto, clausula: t.clausula, fonte: 'NBR 16401-3, p. 12, l. 9', isotermico: !!o.isotermico };
+    // v3.8.0 (R1): v14 é o pior caso do arranjo (selecao.js); a conta entra no rastro só quando decide a linha
+    var vTxt = 'v a 1,4 m, pior caso = ' + F.num(o.v14, 2) + ' m/s', d = o.v14Det;
+    var nota = o.isotermico ? ' (isotérmico: linha do ar quente a menos de 8 °C' + (comV ? '; ' + vTxt : '') + ')' : (comV ? ' (' + vTxt + ')' : '');
+    // v3.9.0 (revisor 3 da 3.8.0, opção R1): a posição do retorno só pesa no ar quente e no isotérmico
+    if (quente && !o.retornoAlto && (o.posicaoRetorno === 'zonaLonge' || o.posicaoRetorno === 'zonaAssentos')) nota += ' (retorno na zona ocupada tratado como retorno pelo piso: dado interpretado; ASHRAE Systems and Equipment 2016, p. 10.4)';
+    if (quente && o.posicaoRetorno === 'veneziana') nota += ' (veneziana tratada como retorno alto: a altura dela não é dada; lado da segurança)';
+    if (r && comV && d) r.passo({ grupo: 'zona', titulo: 'Velocidade do jato a 1,4 m do piso (pior caso do arranjo)', formula: 'v_1,4 = v_t · X_vt / (L + máx(h_inst − 1,4; 0,2))',
+      subst: 'v_1,4 = ' + F.num(d.vt, 2) + ' · ' + F.num(d.x, 2) + ' / (' + F.num(d.L, 2) + ' + ' + F.num(d.dz, 2) + ') (direção ' + d.dir + ', ' + d.tipoL + ', L = ' + F.num(d.L, 2) + ' m)',
+      valor: d.v, unidade: 'm/s', casas: 2, fonte: 'ASHRAE Fundamentals 2021, p. 20.5, l. 24; NBR 16401-3, p. 12, l. 9' });
+    if (r) r.passo({ grupo: 'zona', titulo: 'Eficácia da distribuição de ar (Ez)', formula: 'Tabela 3 — configuração insuflamento/retorno', subst: l.texto + nota, valor: l.valor, unidade: '', casas: 2, fonte: res.fonte });
     return res;
   }
 
@@ -2701,8 +2717,8 @@ window.HVAC = window.HVAC || {};
  * nivel 'erro': sem o dado não há cálculo. selecao.selecionar devolve o resultado bloqueado e nenhum valor
  * é adotado no lugar (até a v2.1.1 o ΔT vazio virava 1 K na vazão pela carga, sem aviso).
  * nivel 'aviso': o cálculo segue. Nesta versão só existem os avisos de entrada que mudam número (item C8 do
- * quadro de decisão de 2026-10-07): dtVazio, dtZero, vazaoZero, cargaZero e instalacaoAbaixoZona.
- * `campo` é o id do campo na tela ('ar.dT', 'ar.Q', 'ar.qs', 'geo.zo'). */
+ * quadro de decisão de 2026-10-07): dtVazio, dtZero, vazaoZero, cargaZero e instalacaoAbaixoZona; retornoPosicao (v3.8.0).
+ * `campo` é o id do campo na tela ('ar.dT', 'ar.Q', 'ar.qs', 'geo.zo', 'retorno.posicao'). */
 (function (D) {
   'use strict';
   var F = D.util.fmt;
@@ -2734,6 +2750,12 @@ window.HVAC = window.HVAC || {};
       if (!(ar.Q > 0) && !(ar.Qsai > 0)) add('erro', 'vazaoZero', 'ar.Q', 'Vazões de insuflamento e de saída vazias ou iguais a zero: não há ar a distribuir.');
     } else if (!(ar.Q > 0)) {
       add('erro', 'vazaoZero', 'ar.Q', 'Vazão total de insuflamento vazia ou igual a zero: não há vazão a distribuir.');
+    }
+    // v3.8.0 (R6 da revisão da v3.7.0; texto aprovado pelo Francisco em 2026-11-24): a tela e o arquivo já filtram; pela API do motor,
+    // uma posição fora da lista derrubava a avaliação do retorno (TypeError). Vazio continua 'forro'.
+    var posRet = e && e.retorno ? e.retorno.posicao : null, faces = D.dados.normas.bocas.retornoFace;
+    if (!vazio(posRet) && (typeof posRet !== 'string' || !Object.prototype.hasOwnProperty.call(faces, posRet) || !faces[posRet] || typeof faces[posRet] !== 'object')) {
+      add('erro', 'retornoPosicao', 'retorno.posicao', 'Posição do retorno fora da lista do app: escolha uma das posições da tela. O app não adota valor no lugar.');
     }
     if (geo.Hinst > 0) {
       var zo = zonaOcupada(e);
@@ -2772,7 +2794,7 @@ window.HVAC = window.HVAC || {};
   var F = D.util.fmt;
 
   function premissas() {
-    var n = D.dados.normas, t = n.ashrae.t50L, cfg = D.motor.config, tec = n.nbr10152.porId('tecnico'), g = D.dados.trox.graficos.atenuacao, gi = D.motor.terminais.regrasGrelha(), ah = D.dados.trox.AHAF, dy = D.dados.trox.desvioY;
+    var n = D.dados.normas, t = n.ashrae.t50L, cfg = D.motor.config, tec = n.nbr10152.porId('tecnico'), san = n.nbr10152.porId('sanitario'), g = D.dados.trox.graficos.atenuacao, gi = D.motor.terminais.regrasGrelha(), ah = D.dados.trox.AHAF, dy = D.dados.trox.desvioY;
     var fr = cfg.indice.retornoFaixaCheia, w = cfg.indice.pesosInsuflamento, de = cfg.indice.desempate, k4 = cfg.indice.t50LReducaoZona4;
     function limSup(k) { return F.num(D.motor.indice.limSupT50L(t[k]), 2); }
     // velocidade em que PD chega ao limite do alerta, a 24 °C (bisseção na Eq. 59 do cap. 9)
@@ -2796,8 +2818,10 @@ window.HVAC = window.HVAC || {};
           'Abaixo do mínimo nada mudou: nota zero e alerta.' : 'Fora da faixa, acima ou abaixo: nota zero e alerta.'),
         fonte: t.fonte + '. Borda de cima: ' + t.bordaSuperior.fonte, situacao: 'fonte secundária (guia de fabricante); premissa declarada, sem confirmação do fabricante; CONFERIR no HVAC Applications' },
       { id: 'L', titulo: 'Comprimento característico L',
-        texto: 'L é a distância do difusor à parede ou ao plano de encontro com o jato do difusor vizinho (metade do espaçamento), em cada direção do jato.',
-        fonte: n.ashrae.comprimentoCaracteristico.fonte, situacao: 'fonte secundária (Price, Titus; Krueger atribui ao Fundamentals 2001); CONFERIR no HVAC Applications' },
+        texto: 'L é a distância do difusor à parede ou ao plano de encontro com o jato do difusor vizinho (metade do espaçamento), em cada direção do jato. ' +
+          // v3.9.0 (revisor 4 da 3.8.0, opção F1, texto F-a aprovado pelo Francisco em 2026-11-25)
+          'Jato no mesmo sentido do jato da peça à frente não tem encontro: segue até a parede, e lá os jatos da fila chegam somados, como uma boca de área n vezes maior (v × √n; ASHRAE Fundamentals 2021, p. 20.7; dado interpretado).',
+        fonte: n.ashrae.comprimentoCaracteristico.fonte + '; ASHRAE Fundamentals 2021, p. 20.7', situacao: 'fonte secundária (Price, Titus; Krueger atribui ao Fundamentals 2001); CONFERIR no HVAC Applications' },
       { id: 'fator0707', titulo: 'Montagem suspensa: alcance × ' + F.num(n.ashrae.jato.fatorLivre.valor, 3),
         texto: 'Sem forro, o alcance do catálogo (jato aderido ao teto) é multiplicado por ' + F.num(n.ashrae.jato.fatorLivre.valor, 3) + '. A equação vale para jato livre não circular; o app aplica o mesmo fator ao ADLR, de jato radial. ' +
           'O texto da C2-005 não traz correção para montagem suspensa (as tabelas C2-006 e C2-007 valem para pé-direito de 3 m). A TROX publica a mesma relação para os difusores de teto de jato rotacional da alta indução: × 0,71 no VDW abaixo de teto contínuo e × 1,4 no VD rente ao forro.',
@@ -2826,8 +2850,9 @@ window.HVAC = window.HVAC || {};
           'A faixa cabe na incerteza dos dados, medida pelo app: ±2 dB de diferença entre a tabela e o gráfico do catálogo valem até ' + F.num(2 / cfg.indice.folgaAcustica * w.acustica, 0) + ' pontos na parcela de ruído, e ±10 % na velocidade (erro declarado do modelo do app ajustado ao gráfico v_H × H1 da TROX C2-005, p. 4) valem até ' + F.num(0.10 / cfg.indice.margemZona * w.zona, 0) + ' na da zona ocupada. ' : '') +
           'Pesos e faixa são critério do app, sem norma, ajustados na v2.1.3 contra os 15 casos de referência (seção 6.3 da metodologia).',
         fonte: 'critério do app, sem norma; os dois números de incerteza são medições do app, não do catálogo: erro declarado do modelo ajustado ao gráfico v_H × H1 da TROX C2-005, p. 4 (±10 %), e diferença medida entre as tabelas C2-006 e C2-007 e os gráficos da TROX C2-005, p. 5 (±2 dB)', situacao: 'critério do app, sem norma, com o efeito medido nos 15 casos de referência' },
-      { id: 'areaTecnica', titulo: F.num(tec.dba, 0) + ' dB(A) em área técnica',
-        texto: 'A Tabela 3 da NBR 10152 não traz área técnica, casa de máquinas nem indústria. O limite de ' + F.num(tec.dba, 0) + ' dB(A) da aplicação "' + tec.nome + '" pode ser editado.',
+      // v3.7.0 (D10): o sanitário entra junto (valor de projeto)
+      { id: 'areaTecnica', titulo: 'Valores de projeto sem norma',
+        texto: 'A Tabela 3 da NBR 10152 não traz área técnica, casa de máquinas, indústria nem sanitário. Os limites de ' + F.num(tec.dba, 0) + ' dB(A) (área técnica) e ' + F.num(san.dba, 0) + ' dB(A) (sanitários e chuveiros) podem ser editados.',
         fonte: 'sem norma', situacao: 'valor de projeto, sem norma' },
       { id: 'reprovacoes', titulo: 'Três reprovações de prática de projeto',
         texto: 'Reprovam a alternativa sem base em norma: alcance máximo acima de 1,5 × a altura de instalação; alcance acima de 2 × L; velocidade na boca acima do máximo da classe da aplicação. ' +
@@ -2865,11 +2890,15 @@ window.HVAC = window.HVAC || {};
         fonte: 'NBR 16401-2, p. 33, l. 28; NBR 16401-2, p. 34, l. 10 e Tabela 14', situacao: 'premissa declarada' },
       // v3.6.0 (E3, X11): modo "Vazões da ventilação"
       { id: 'ventilacao', titulo: 'Modo só ventilação: isotérmico e exaustão',
-        texto: 'Modo isotérmico: Ez pela linha do ar frio pelo forro (ar insuflado não mais quente que o ambiente). ' +
+        texto: 'Modo isotérmico: Ez pelas linhas do ar quente a menos de 8 °C acima do ambiente (1,0 com velocidade de insuflação de 0,8 m/s ou mais a 1,4 m; senão 0,8; NBR 16401-3, p. 12): o ar sem serpentina não é mais frio que o ambiente e ganha calor no ventilador e nos dutos. ' +
           'Exaustão: tabelas e velocidades de face do retorno (TROX C1-004 e C1-005; Krueger, p. a1-14). ' +
           'AH e AF fora da exaustão: o catálogo da biblioteca não traz Δp nem ruído de retorno para elas.',
         fonte: 'NBR 16401-3, p. 12, l. 9; TROX C1-004, p. 1 e 2; TROX C1-005, p. 1 e 2; TROX C1-001, p. 2 e 4; TROX C1-008, p. 3; ' + n.bocas.retornoFace.fonteCurta,
-        situacao: 'premissa declarada' }
+        situacao: 'premissa declarada' },
+      // v3.9.0 (revisor 3 da 3.8.0, opção R1, texto R-c aprovado pelo Francisco em 2026-11-25)
+      { id: 'ezRetorno', titulo: 'Ez: posição do retorno',
+        texto: 'Ez, retorno: forro e parede alta são retorno alto; retorno na zona ocupada (longe ou perto de assentos) conta como retorno pelo piso da NBR 16401-3, p. 12; veneziana conta como retorno alto, porque a altura dela não é dada (dado interpretado).',
+        fonte: 'NBR 16401-3, p. 12, l. 9; ASHRAE Systems and Equipment 2016, p. 10.4', situacao: 'premissa declarada: dado interpretado' }
     ];
   }
 
@@ -3084,17 +3113,21 @@ window.HVAC = window.HVAC || {};
   var PAREDE = { '+x': 'parede x = C', '-x': 'parede x = 0', '+y': 'parede y = L', '-y': 'parede y = 0' };
 
   /* L por direção de cada terminal: distância à parede ou fração da distância
-   * ao terminal à frente (plano de encontro dos jatos) — ASHRAE Fundamentals cap. 20. */
+   * ao terminal à frente (plano de encontro dos jatos) — ASHRAE Fundamentals cap. 20.
+   * v3.9.0 (revisor 4 da 3.8.0, opção F1 do Francisco, 2026-11-25): só há encontro com terminal que sopra de volta (jato oposto).
+   * Terminal à frente que sopra no mesmo sentido (ADE-1 em fileiras) não para o jato: ele segue até a parede, e lá os jatos da fila
+   * chegam somados (nSoma = peças da fila até esta, inclusive; ASHRAE Fundamentals 2021, p. 20.7, "Multiple Jets"). */
   function direcoes(pos, C, W, dirs, fracao) {
     if (fracao === undefined) fracao = 0.5;
-    return pos.map(function (p, i) {
+    var out = pos.map(function (p, i) {
       var res = { x: p.x, y: p.y, dirs: {} };
       (p.d ? [p.d] : dirs).forEach(function (d) {   // p.d: grelha de parede, um jato só (v3.4.0)
         var eixo = d.charAt(1), sinal = d.charAt(0) === '+' ? 1 : -1;
         var parede = eixo === 'x' ? (sinal > 0 ? C - p.x : p.x) : (sinal > 0 ? W - p.y : p.y);
         var melhor = { L: parede, tipo: 'parede', dist: parede };
+        var oposto = (d.charAt(0) === '+' ? '-' : '+') + eixo;
         pos.forEach(function (q, j) {
-          if (i === j) return;
+          if (i === j || (q.d ? [q.d] : dirs).indexOf(oposto) < 0) return;
           var da = eixo === 'x' ? (q.x - p.x) * sinal : (q.y - p.y) * sinal;
           var dt = eixo === 'x' ? Math.abs(q.y - p.y) : Math.abs(q.x - p.x);
           if (da > 0.01 && dt <= 0.5 * da && da * fracao < melhor.L) melhor = { L: da * fracao, tipo: 'jato', dist: da };
@@ -3103,6 +3136,21 @@ window.HVAC = window.HVAC || {};
       });
       return res;
     });
+    // fila de jatos no mesmo sentido que chegam à parede: conta as FILEIRAS atrás desta (distâncias distintas no eixo do jato), no
+    // mesmo cone de alinhamento do encontro; as vizinhas da mesma fileira não somam (a linha age como um jato só; revisão da 3.9.0-dev)
+    out.forEach(function (g, i) {
+      Object.keys(g.dirs).forEach(function (d) {
+        var q0 = g.dirs[d]; if (q0.tipo !== 'parede') return;
+        var eixo = d.charAt(1), sinal = d.charAt(0) === '+' ? 1 : -1, fileiras = {};
+        out.forEach(function (h, j) {
+          if (i === j || !h.dirs[d] || h.dirs[d].tipo !== 'parede') return;
+          var da = eixo === 'x' ? (g.x - h.x) * sinal : (g.y - h.y) * sinal, dt = eixo === 'x' ? Math.abs(g.y - h.y) : Math.abs(g.x - h.x);
+          if (da > 0.01 && dt <= 0.5 * da + 1e-9) fileiras[da.toFixed(2)] = true;
+        });
+        q0.nSoma = 1 + Object.keys(fileiras).length;
+      });
+    });
+    return out;
   }
 
   /* Velocidade vertical de dois jatos opostos (gráfico C2-005 pág. 4). */
@@ -3137,10 +3185,12 @@ window.HVAC = window.HVAC || {};
     recuo = recuo || 0;
     if (dir.tipo === 'parede') {
       var trajeto = dir.L + H1;
-      var v = vt * X / trajeto;
+      var n = dir.nSoma || 1, v1 = vt * X / trajeto, v = v1 * Math.sqrt(n);
       if (r) {
         r.passo({ grupo: 'zona', titulo: 'Trajeto do jato até a zona ocupada (' + (PAREDE[dirKey] || 'parede') + ') — ' + rotulo, formula: 'L_t = L + H1  (A + B)', subst: 'L_t = ' + F.num(dir.L, 2) + ' + ' + F.num(H1, 2) + (recuo ? '; fronteira da zona ocupada a ' + F.num(recuo, 1) + ' m da parede — velocidade na fronteira ≤ velocidade no eixo do jato descendente' : ''), valor: trajeto, unidade: 'm', casas: 2, fonte: 'TROX C2-005, p. 4; NBR 16401-2, p. 8, l. 11' });
-        r.passo({ grupo: 'zona', titulo: 'Velocidade do jato ao entrar na zona ocupada — ' + rotulo, formula: 'v = v_t · X_vt / L_t  (v ∝ 1/x)', subst: 'v = ' + F.num(vt, 2) + ' · ' + F.num(X, 2) + ' / ' + F.num(trajeto, 2), valor: v, unidade: 'm/s', casas: 3, fonte: 'ASHRAE Fundamentals 2021, p. 20.5, l. 24; alcance publicado pela TROX' });
+        r.passo({ grupo: 'zona', titulo: 'Velocidade do jato ao entrar na zona ocupada — ' + rotulo, formula: 'v = v_t · X_vt / L_t  (v ∝ 1/x)', subst: 'v = ' + F.num(vt, 2) + ' · ' + F.num(X, 2) + ' / ' + F.num(trajeto, 2), valor: v1, unidade: 'm/s', casas: 3, fonte: 'ASHRAE Fundamentals 2021, p. 20.5, l. 24; alcance publicado pela TROX' });
+        // v3.9.0 (F1): jatos da fila no mesmo sentido somados = boca de área n vezes maior, mesma velocidade de saída (v ∝ √área)
+        if (n > 1) r.passo({ grupo: 'zona', titulo: 'Jatos da fila somados na parede — ' + rotulo, formula: 'v = v_1 · √n', subst: 'v = ' + F.num(v1, 3) + ' · √' + n + ' (' + n + ' peças na fila)', valor: v, unidade: 'm/s', casas: 3, fonte: 'ASHRAE Fundamentals 2021, p. 20.7' });
       }
       return { v: v, modo: 'parede', trajeto: trajeto };
     }
@@ -3914,6 +3964,10 @@ window.HVAC = window.HVAC || {};
 
   function cfg() { return D.motor.config; }
   function retornoAlto(e) { var p = e.retorno.posicao || 'forro'; return p === 'forro' || p === 'paredeAlta'; }
+  // Ez (NBR 16401-3, Tabela 3): v3.9.0 (revisor 3 da 3.8.0, opção R1 do Francisco, 2026-11-25) — a veneziana conta como retorno alto
+  // (altura não dada; Ez maior reduz o ar exterior: lado da segurança); o retorno na zona ocupada conta como "retorno pelo piso".
+  // retornoAlto() continua só geométrico (grelha no campo do jato de insuflamento).
+  function retornoAltoEz(e) { return retornoAlto(e) || e.retorno.posicao === 'veneziana'; }
 
   // Classe de velocidade nas bocas de insuflamento (prática de projeto) a partir da aplicação (NBR 10152)
   function classeVelocidade(e) {
@@ -4043,7 +4097,8 @@ window.HVAC = window.HVAC || {};
       var alt = fam.alturas[cand.variante === 'ADE-2' ? 'ade2' : 'ade1'][cand.ab];
       res.dimensao = cand.variante + ' — ' + cand.ab + ' abertura(s)' + (cand.variante === 'ADE-2' ? ' por lado' : '') + ', H = ' + alt.H + ' mm, comprimento ' + cand.comp + ' mm';
       res.modelo = fam.nome + ' (' + cand.variante + ')';
-      r.estendido('Velocidade na zona ocupada: gráfico de jatos opostos da C2-005 (difusores de teto) aplicado ao difusor linear');
+      // v3.9.0 (revisão da 3.9.0-dev, achado 2): a ressalva só sai se o gráfico de jatos opostos governar alguma direção (ver o laço do v_zo)
+      res.adeGrafJato = true;
     }
     var classe = classeVelocidade(e);
     faixaFace = { min: cfg().velocidadeMinBoca, max: classe.max, classe: classe, info: !!ai };
@@ -4070,7 +4125,7 @@ window.HVAC = window.HVAC || {};
 
     // direções, L, T50/L (menor e maior entre as direções) e v_zo
     var geom = A.direcoes(cand.arranjo.pos, C, W, dirs, res.fracaoL);
-    var Lmap = {}, tiposL = {}, piorT50L = null, maiorT50L = null, piorVzo = -1, piorDir = null, maiorDir = null, piorVzoDir = null, regra75 = { max: 0, min: Infinity }, v14max = 0;
+    var Lmap = {}, tiposL = {}, piorT50L = null, maiorT50L = null, piorVzo = -1, piorDir = null, maiorDir = null, piorVzoDir = null, regra75 = { max: 0, min: Infinity };
     dirs.forEach(function (d) {
       // L de referência: o menor da direção; com parede e encontro de jatos no mesmo L, a referência é a parede (não depende da ordem das peças)
       var Lmin = Infinity, ref = null, tipos = {};
@@ -4090,8 +4145,9 @@ window.HVAC = window.HVAC || {};
     var fonteT50L = D.dados.normas.ashrae.t50L.fonteCurta + '; faixa ' + F.num(faixaT50L.min, 1) + '–' + F.num(faixaT50L.max, 1) + ' (' + faixaT50L.nome + ')';
     r.passo({ grupo: 'alcance', titulo: 'Razão T50/L mínima (direção de maior L)', formula: 'T50/L', subst: 'T50/L = ' + F.num(res.t50, 2) + ' / ' + F.num(Lmap[piorDir].L, 2) + ' (direção ' + piorDir + ')', valor: piorT50L, unidade: '', casas: 2, fonte: fonteT50L });
     if (maiorT50L - piorT50L > 1e-9) r.passo({ grupo: 'alcance', titulo: 'Razão T50/L máxima (direção de menor L)', formula: 'T50/L', subst: 'T50/L = ' + F.num(res.t50, 2) + ' / ' + F.num(Lmap[maiorDir].L, 2) + ' (direção ' + maiorDir + ')', valor: maiorT50L, unidade: '', casas: 2, fonte: fonteT50L });
+    var usouGrafJato = false;
     dirs.forEach(function (d) {
-      var recuo = (amb.zona && amb.zona.recuo && amb.zona.recuo[d]) || 0.3;
+      var recuo =(amb.zona && amb.zona.recuo && amb.zona.recuo[d]) || 0.3;
       var vz;
       if (ai) {
         // cada peça vê parede ou vizinho nesta direção: avalia os casos presentes no arranjo e fica com o maior
@@ -4109,22 +4165,31 @@ window.HVAC = window.HVAC || {};
         // avalia os casos presentes no arranjo e fica com o de maior velocidade (empate: a parede; no mesmo tipo, o menor L);
         // o rastro e as notas de "dado estimado" saem só do caso que ficou (TROX C2-005 pág. 4; sessão T2b, linha 1 do quadro T2a)
         var vistos = {}, lista = [], melhor = null;
-        geom.forEach(function (gq) { var q = gq.dirs[d]; if (!q) return; var k = q.tipo + '|' + q.L.toFixed(6); if (!vistos[k]) { vistos[k] = true; lista.push(q); } });
+        geom.forEach(function (gq) { var q = gq.dirs[d]; if (!q) return; var k = q.tipo + '|' + q.L.toFixed(6) + '|' + (q.nSoma || 1); if (!vistos[k]) { vistos[k] = true; lista.push(q); } });
         lista.sort(function (a, b) { return (a.tipo === b.tipo ? 0 : (a.tipo === 'parede' ? -1 : 1)) || a.L - b.L; });
         var vs0 = lista.map(function (q) { return A.velocidadeZona(res.xMax, vtMax, q, amb.H1, null, 'direção ' + d, false, recuo, d).v; });
         lista.forEach(function (q, k) { if (!melhor || vs0[k] > melhor.v + 1e-9) melhor = { v: vs0[k], q: q }; });
         if (lista.length > 1) r.passo({ grupo: 'zona', titulo: 'Caso que governa a direção ' + d, formula: 'v_dir = máx(v nos casos presentes)', subst: lista.map(function (q, k) { return (q.tipo === 'parede' ? 'parede' : 'encontro de jatos') + ', L = ' + F.num(q.L, 2) + ' m: ' + F.num(vs0[k], 3) + ' m/s'; }).join('; ') + ' → fica ' + F.num(melhor.v, 3) + ' m/s (' + (melhor.q.tipo === 'parede' ? 'parede' : 'encontro de jatos') + ')', valor: melhor.v, unidade: 'm/s', casas: 3, fonte: 'TROX C2-005, p. 4' });
         vz = A.velocidadeZona(res.xMax, vtMax, melhor.q, amb.H1, r, 'direção ' + d, false, recuo, d);
+        if (melhor.q.tipo === 'jato') usouGrafJato = true;
       }
       if (vz.v > piorVzo) { piorVzo = vz.v; piorVzoDir = d; }
-      v14max = Math.max(v14max, vtMax * res.xMax / (Lmap[d].L + Math.max(amb.Hinst - 1.4, 0.2))); // velocidade a 1,4 m do piso (NBR 16401-3, Tabela 3)
     });
+    // velocidade do jato a 1,4 m do piso (NBR 16401-3, Tabela 3), pior caso do arranjo: maior L entre todas as peças e direções
+    // (v3.8.0, achado R1 da revisão da v3.7.0, opção (a) do Francisco em 2026-11-24; até a 3.7.0 era a maior velocidade entre as
+    // direções, com o menor L de cada uma: bastava o jato mais curto chegar a 0,8 m/s para Ez = 1,0 na sala toda)
+    var p14 = null;
+    geom.forEach(function (g) { dirs.forEach(function (d) { var q = g.dirs[d]; if (q && (!p14 || q.L > p14.L + 1e-9)) p14 = { L: q.L, dir: d, tipo: q.tipo }; }); });
+    var v14Det = p14 ? { vt: vtMax, x: res.xMax, L: p14.L, dz: Math.max(amb.Hinst - 1.4, 0.2), dir: p14.dir, tipoL: p14.tipo === 'parede' ? 'parede' : 'encontro de jatos' } : null;
+    if (v14Det) v14Det.v = v14Det.vt * v14Det.x / (v14Det.L + v14Det.dz);
+    var v14 = v14Det ? v14Det.v : null;
+    if (res.adeGrafJato) { delete res.adeGrafJato; if (usouGrafJato) r.estendido('Velocidade na zona ocupada: gráfico de jatos opostos da C2-005 (difusores de teto) aplicado ao difusor linear'); }
     res.vzo = piorVzo; res.vzoDir = piorVzoDir;
     r.passo({ grupo: 'zona', titulo: 'Velocidade na zona ocupada (maior entre as direções)', formula: 'v_zo = máx(v_dir)', subst: 'v_zo = ' + F.num(piorVzo, 3) + ' (direção ' + piorVzoDir + ')', valor: piorVzo, unidade: 'm/s', casas: 2, fonte: 'NBR 16401-1, p. 22, l. 6' });
     var dr = N.draft(piorVzo, amb.to, cfg().draft.Tu, r);
     res.draft = dr.pd;
-    var ezRes = N.ez({ aquecimento: amb.dT < 0, dT: Math.abs(amb.dT), retornoAlto: retornoAlto(e), v14: v14max }, r);
-    res.ez = ezRes; res.v14 = v14max;
+    var ezRes = N.ez({ aquecimento: amb.dT < 0, isotermico: !!amb.isotermico, dT: Math.abs(amb.dT), retornoAlto: retornoAltoEz(e), posicaoRetorno: e.retorno.posicao || 'forro', v14: v14, v14Det: v14Det }, r);
+    res.ez = ezRes; res.v14 = v14; res.v14Det = v14Det;
 
     // acústica
     var dist = Math.max(0.7, amb.Hinst - cfg().alturaOuvido);
@@ -4146,7 +4211,7 @@ window.HVAC = window.HVAC || {};
     if (ai && ai.aquecimento && amb.dT < 0) r.alerta(cand.familia + ' em aquecimento: ' + ai.aquecimento + ' — resultado válido só para resfriamento');
     if (ai && ai.notaAneis && base.t.quad && /48|54|72/.test(cand.tam)) r.alerta(ai.notaAneis);
     if (amb.dT < 0) r.alerta('Aquecimento pelo teto: jato quente tende a estratificar; conferir a mistura na zona ocupada (Ez pela NBR 16401-3, p. 12, l. 9)');
-    if (e.crit.dbaMax < D.dados.normas.nbr16401_1.especialista.dbaEquivalente) r.alerta('Limite acústico abaixo de 35 dB(A) (nível inferior a NC 30): em sistemas críticos, a NBR 16401-1, p. 31, l. 16 exige a assistência de um especialista no tratamento acústico');
+    if (e.crit.dbaMax < D.dados.normas.nbr16401_1.especialista.dbaEquivalente) r.alerta('Limite acústico abaixo de 35 dB(A), nível inferior a NC 30 pela correspondência da NBR 10152, p. 12 a 14 (Tabela 3: RLAeq = RLNC + 5 dB): em sistemas críticos, a NBR 16401-1, p. 31, l. 16 exige a assistência de um especialista no tratamento acústico');   // v3.7.0 (B3): a equivalência vem da NBR 10152, não da 10.9.4
 
     // verificações
     var vs = res.verifs, vzoMax = amb.vzoLim.valor, lim = limiteAcustico(e);
@@ -4250,8 +4315,15 @@ window.HVAC = window.HVAC || {};
         var folga = amb.H - amb.Hinst - res.Hgrelha / 2;
         vs.push(V.item({ id: 'pedireito', criterio: 'Grelha afastada do forro (topo a ' + F.num(fo.distMinAfastada, 1) + ' m ou mais dele): jato livre, alcance × ' + F.num(fo.fatorAfastada, 2), valor: folga, valorTxt: 'topo da grelha a ' + F.num(folga, 2) + ' m do forro (jato a ' + F.num(amb.Hinst, 2) + ' m do piso)', limiteTxt: '≥ ' + F.num(fo.distMinAfastada, 1) + ' m abaixo do forro', tipo: 'info', situacao: folga >= fo.distMinAfastada - 1e-9 ? 'atende' : 'alerta', fonte: fo.fonte,
           obs: folga >= fo.distMinAfastada - 1e-9 ? '' : 'Pé-direito − altura de instalação − metade da altura da grelha < ' + F.num(fo.distMinAfastada, 1) + ' m: confira a altura de instalação (entre 0,3 e 0,8 m do forro o catálogo não dá dado)' }));
-      } else vs.push(V.item({ id: 'pedireito', criterio: 'Grelha junto ao forro (topo a até 0,3 m dele), condição das tabelas', valor: amb.Hinst, valorTxt: 'jato a ' + F.num(amb.Hinst, 2) + ' m do piso', limiteTxt: 'topo da grelha ≤ ' + F.num(fo.distMax, 1) + ' m abaixo do forro', tipo: 'info', situacao: e.geo.montagem === 'suspenso' ? 'alerta' : 'atende', fonte: fo.fonte,
-        obs: e.geo.montagem === 'suspenso' ? 'Montagem suspensa marcada para os difusores de teto e grelha marcada como junto ao forro. Se o topo da grelha ficar a 0,8 m ou mais do forro, marque "afastada do forro" na montagem da grelha: o alcance cai a 0,71 × e a queda do jato frio passa a ser verificada pelo desvio y (TROX C1-006, p. 3 e 4)' : '' }));
+      } else {
+        // v3.9.0 (opção J1 do Francisco, 2026-11-25; textos J-a e J-b): topo a mais de 0,3 m do forro → alerta (não reprova)
+        var folgaJ = amb.H - amb.Hinst - res.Hgrelha / 2, juntoAlta = folgaJ > fo.distMax + 1e-9, juntoSusp = e.geo.montagem === 'suspenso';
+        vs.push(V.item({ id: 'pedireito', criterio: 'Grelha junto ao forro (topo a até 0,3 m dele), condição das tabelas', valor: amb.Hinst,
+          valorTxt: folgaJ > 0 ? 'topo da grelha a ' + F.num(folgaJ, 2) + ' m do forro (jato a ' + F.num(amb.Hinst, 2) + ' m do piso)' : 'jato a ' + F.num(amb.Hinst, 2) + ' m do piso',
+          limiteTxt: 'topo da grelha ≤ ' + F.num(fo.distMax, 1) + ' m abaixo do forro', tipo: 'info', situacao: juntoAlta || juntoSusp ? 'alerta' : 'atende', fonte: fo.fonte,
+          obs: juntoAlta ? 'Topo da grelha a mais de 0,3 m do forro: o jato pode não colar no forro e as tabelas da TROX C1-003 deixam de valer. Suba a grelha até o topo ficar a até 0,3 m do forro ou, com o topo a 0,8 m ou mais, marque "afastada do forro" (TROX C1-006, p. 3). Entre 0,3 e 0,8 m o catálogo não dá dado.' :
+          juntoSusp ? 'Montagem suspensa marcada para os difusores de teto e grelha marcada como junto ao forro. Se o topo da grelha ficar a 0,8 m ou mais do forro, marque "afastada do forro" na montagem da grelha: o alcance cai a 0,71 × e a queda do jato frio passa a ser verificada pelo desvio y (TROX C1-006, p. 3 e 4)' : '' }));
+      }
     } else if (ft) {
       vs.push(V.item({ id: 'pedireito', criterio: 'Altura de instalação (família de teste)', valor: amb.Hinst, valorTxt: F.num(amb.Hinst, 2) + ' m', limiteTxt: '—', tipo: 'info', situacao: 'atende', fonte: base.fonte }));
     } else vs.push(V.item({ id: 'pedireito', criterio: 'Altura de instalação compatível com a condição de ensaio (3 m)', valor: amb.Hinst, valorTxt: F.num(amb.Hinst, 2) + ' m', limiteTxt: fam3 ? '3,0 m ± ' + F.num(cfg().peDireitoTolerancia, 1) : '—', tipo: 'info', situacao: !fam3 || Math.abs(amb.Hinst - fam3) <= cfg().peDireitoTolerancia ? 'atende' : 'alerta', fonte: 'TROX ' + (cand.familia === 'ADLR' ? 'C2-006' : 'C2-007') }));
@@ -4351,7 +4423,7 @@ window.HVAC = window.HVAC || {};
     r.passo({ grupo: 'produto', titulo: 'Posição das grelhas', formula: semIns ? 'distribuídas pela área do ambiente (sem insuflamento)' : 'pontos de menor velocidade de jato, distribuídos pelos grupos de difusores', subst: res.pos.map(function (p, i) { return (exa ? 'E' : 'R') + (i + 1) + ' (' + F.num(p.x, 2) + '; ' + F.num(p.y, 2) + ')'; }).join('; ') + (posManual ? ' — ajustadas manualmente' : ''), valor: null, fonte: 'ASHRAE Fundamentals 2021, p. 20.5; NBR 16401-1, p. 22, l. 19' });
     if (m.maxDist != null) r.passo({ grupo: 'produto', titulo: 'Difusor mais afastado da grelha mais próxima', formula: 'máx_i mín_j dist(difusor_i, grelha_j)', subst: 'd_máx = ' + F.num(m.maxDist, 2) + ' m; difusores por grelha: ' + m.grupos.join(' / '), valor: m.maxDist, unidade: 'm', casas: 2, fonte: 'Regra de projeto' });
     if (ctx.altoNivel && ctx.sup) r.passo({ grupo: 'produto', titulo: 'Velocidade do jato de insuflamento na posição da grelha (pior caso)', formula: 'v = v_t · X_vt / dist  (Eq. 4, por setor de descarga)', subst: 'v_jato = ' + F.num(m.vJato, 3) + ' m/s' + (m.iPior >= 0 ? ' (grelha R' + (m.iPior + 1) + ')' : ''), valor: m.vJato, unidade: 'm/s', casas: 2, fonte: 'ASHRAE Fundamentals 2021, p. 20.5, l. 24; NBR 16401-1, p. 22, l. 19' });
-    var ezRes = semIns ? null : N.ez({ aquecimento: amb.dT < 0, dT: Math.abs(amb.dT), retornoAlto: ctx.altoNivel, v14: ctx.sup ? ctx.sup.v14 : null }, r);
+    var ezRes = semIns ? null : N.ez({ aquecimento: amb.dT < 0, isotermico: !!amb.isotermico, dT: Math.abs(amb.dT), retornoAlto: ctx.altoNivel || pos === 'veneziana', posicaoRetorno: pos, v14: ctx.sup ? ctx.sup.v14 : null, v14Det: ctx.sup ? ctx.sup.v14Det : null }, r);
     res.ez = ezRes;
 
     // verificações
@@ -4898,6 +4970,7 @@ window.HVAC = window.HVAC || {};
   'use strict';
   var AD = D.util.adaptador, ESC = D.util.escolha;
   var NIVEIS = { impede: 0, conferir: 1, info: 2 };
+  var TEXTO_EXAUSTAO = 'Grelha de exaustão: a posição do app só distribui as grelhas. Instale-as junto às fontes (bacias, mictórios, chuveiros) e longe da entrada do ar de transferência (porta, veneziana), para o ar não ir direto da entrada à grelha (NBR 16401-1, p. 22, l. 23; Krueger, p. a1-14)';
 
   function nomeDe(amb) { return amb.nome || 'Ambiente sem nome'; }
   function txtNum(v) { return typeof v === 'number' ? String(v).replace('.', ',') : '—'; }
@@ -4971,6 +5044,10 @@ window.HVAC = window.HVAC || {};
       }
       r.avisos.filter(function (x) { return x.nivel !== 'erro'; }).forEach(function (x) { add('conferir', i, onde, 'Aviso de entrada: ' + x.texto, [], rotaAmb); });
       v.avisos.forEach(function (t) { add('conferir', i, onde, t, [], rotaSel); });
+      // v3.7.0 (D7 da revisão E3): a posição do app só distribui as grelhas de exaustão
+      if (a && a.papelSaida === 'exaustao' && a.Qret > 0) add('conferir', i, onde, TEXTO_EXAUSTAO, [], rotaSel);
+      // v3.7.0 (D6): ar isotérmico com Ez < 1 (a Ventilação calcula o ar exterior sem Ez)
+      if (s && a && a.isotermico && s.ez && s.ez.valor < 1) add('conferir', i, onde, 'Ez = ' + txtNum(s.ez.valor) + ' (ar isotérmico pelo forro, NBR 16401-3, p. 12, l. 9): a vazão de ar exterior a suprir é a eficaz ÷ ' + txtNum(s.ez.valor) + '; o app de Ventilação calcula sem Ez: confira se o insuflamento a cobre', [], rotaSel);
 
       if (s && v.adotada) add('info', i, onde, 'Insuflamento adotado por você: ' + AD.rotuloSolucao(s) + ' (a 1ª opção do app é ' + AD.rotuloSolucao(v.primeira) + ')', [], rotaSel);
       if (rt && v.retAdotada) add('info', i, onde, X.Cap + ' adotad' + X.o + ' por você: ' + rotuloRet(rt), [], rotaSel);
@@ -5231,7 +5308,7 @@ window.HVAC = window.HVAC || {};
 /* Importação de ambientes do app de carga térmica (v3.0.0, sessão T3, etapa 2b; calor sensível na D1, v3.0.1). Sem DOM.
  *   D.util.importaCT.importar(obj, E) → { ok, ambientes, relatorio, versaoOrigem, motivo }
  * Lê o arquivo do app de carga térmica (formato 'hvac-carga-termica', versões 1, 2 e 3) e devolve ambientes novos (a partir de
- * D.util.formato4.novoAmbiente) com nome, pé-direito, temperatura e umidade. Comprimento e largura ficam para digitar
+ * D.util.formato4.novoAmbiente) com nome, pé-direito, temperatura, umidade e ΔT de insuflamento (v3.7.0). Comprimento e largura ficam para digitar
  * (a área vai em amb.areaCT, só como dica para larguraSugerida).
  * Formato 3 em diante (carga térmica v0.5.1): lê resultados.ambientes[k] (k = posição do ambiente no arquivo) e grava amb.ar.qs com
  * o calor sensível do ambiente (sensivelAmbienteW como está no arquivo (1 casa decimal), sem novo arredondamento), com mês, dia e hora na linha do relatório. Não altera E: quem chama acrescenta os ambientes ao projeto. Linhas do relatório no formato de formato4.js:
@@ -5289,6 +5366,28 @@ window.HVAC = window.HVAC || {};
       MESES[res.mes - 1] + ', ' + DIAS[res.dia] + ', ' + res.hora + ' h' : 'mês, dia e hora não informados';
     linha(rel, 'info', onde, CAMPO, F.num(v, 1) + ' W (' + quando + ')', F.num(v, 1) + ' W',
       'maior valor do ano na janela de ocupação, com a infiltração sensível incluída, sem ar exterior, sem latente, sem calor ao retorno e sem fator de segurança; a vazão sai com a massa específica do ar na altitude deste projeto');
+  }
+
+  /* ΔT de insuflamento (v3.7.0, B4 da base de critérios; OK do Francisco em 19/11 e 24/11): projeto.dTIns da carga térmica (1 a 25 °C,
+   * campo da 0.9.0); ausente ou nulo = o padrão da carga, 10 °C (M.serpentina.DT_PADRAO de lá; se ele mudar, mudar aqui). Antes da v3.7.0
+   * o ambiente importado ficava calado com os 11 °C do Difusores. */
+  var DT_PADRAO_CT = 10;
+  function dtInsuflamento(rel, onde, amb, pj) {
+    var CAMPO = 'ΔT de insuflamento', v = pj.dTIns;
+    if (vazio(v)) {
+      amb.ar.dT = DT_PADRAO_CT;
+      linha(rel, 'info', onde, CAMPO, '(ausente)', F.num(DT_PADRAO_CT, 0) + ' °C', 'o arquivo não traz ΔT: fica o padrão da carga térmica, ' + F.num(DT_PADRAO_CT, 0) + ' °C; confira');
+      return;
+    }
+    var n = numero(v);
+    if (n >= 1 && n <= 25) {
+      amb.ar.dT = n;
+      linha(rel, 'info', onde, CAMPO, txt(v) + ' °C', txt(n) + ' °C', 'ΔT de insuflamento da carga térmica (pedido no projeto de lá); se a carga avisou saída saturada ou ar exterior maior que a vazão pelo ΔT, digite o ΔT adotado lá');
+    } else {
+      amb.ar.dT = DT_PADRAO_CT;
+      // v3.8.0 (R5 da revisão da v3.7.0; texto aprovado pelo Francisco em 2026-11-24): não numérico tem motivo próprio
+      linha(rel, 'substituido', onde, CAMPO, txt(v), F.num(DT_PADRAO_CT, 0) + ' °C', (isFinite(n) ? 'valor fora da faixa de 1 a 25 °C' : 'valor não numérico') + ': fica o padrão da carga térmica, ' + F.num(DT_PADRAO_CT, 0) + ' °C');
+    }
   }
 
   // Largura que, com o comprimento C, dá a área da carga térmica (m, arredondada a 0,01); null se faltar dado
@@ -5370,6 +5469,7 @@ window.HVAC = window.HVAC || {};
           else linha(rel, 'substituido', onde, 'Umidade relativa do ambiente', txt(ui), 'acompanha o padrão (' + txt(AD.UR_PADRAO) + ' %)', 'valor fora da faixa de 1 a 100 %');
         }
         amb.ar.modo = 'carga'; amb.ar.qs = null; amb.ar.Q = null;
+        dtInsuflamento(rel, onde, amb, pj);
         if (temBloco) calorSensivel(rel, onde, amb, obj.resultados.ambientes[posOrig[idx]], nomeOrig);
         novos.push(amb);
       });
@@ -5425,6 +5525,15 @@ window.HVAC = window.HVAC || {};
   'use strict';
   var F = D.util.fmt, AD = D.util.adaptador, F4 = D.util.formato4;
   var FORMATO_VENT = 'hvac-ventilacao', VERSAO_CONHECIDA = 2;
+  /* v3.7.0 (D10): tipo do ambiente na Ventilação (nome da linha da NBR 7256, Tabela A.3 e A.7, ou da NBR 16401-3, Tabela 2) → aplicação
+   * NBR 10152. Os demais tipos ficam com a aplicação do ambiente novo (escritório privativo), com a linha "confira". */
+  var TIPO_APLICACAO = {
+    'Sala de cirurgia': 'centroCirurgico', 'Antecâmara acesso à sala cirúrgica': 'centroCirurgico',
+    'Corredor/ circulação do centro cirúrgico': 'centroCirurgico', 'Sala, área de indução anestésica': 'centroCirurgico',
+    'Sala de apoio às cirurgias especializadas': 'centroCirurgico', 'Sala/ área de recuperação anestésica': 'centroCirurgico',
+    'Sala de guarda e preparo de anestésicos (centro cirúrgico)': 'centroCirurgico',
+    'Banheiro privado': 'sanitario', 'Banheiro público': 'sanitario', 'Chuveiros': 'sanitario', 'Banheiros': 'sanitario'
+  };
 
   function ehObj(x) { return x !== null && typeof x === 'object' && !Array.isArray(x); }
   function vazio(x) { return x === null || x === undefined || x === '' || (typeof x === 'number' && isNaN(x)); }
@@ -5563,8 +5672,17 @@ window.HVAC = window.HVAC || {};
           linha(rel, 'info', onde, 'Situação na ventilação', a.situacao + (av.length ? ' (avisos ' + av.join(', ') + ')' : ''), '(importado assim mesmo)',
             'o ambiente não atende no app de Ventilação: confira lá antes de escolher as bocas');
         }
+        // v3.7.0 (D10 da revisão E3): o tipo da ventilação escolhe a aplicação de centro cirúrgico ou de sanitário
+        var tipo = typeof a.tipo === 'string' ? a.tipo.trim() : '', idApl = TIPO_APLICACAO[tipo] || null;
+        if (idApl) { amb.crit.aplicacao = idApl; amb.crit.dbaMax = null; }
         var apl = AD.aplicacao(amb.crit.aplicacao);
-        linha(rel, 'info', onde, 'Aplicação (limite de ruído)', '(ausente)', apl ? apl.nome : txt(amb.crit.aplicacao),
+        if (idApl) linha(rel, 'info', onde, 'Aplicação (limite de ruído)', tipo, apl ? apl.nome : txt(idApl),
+          idApl === 'sanitario' ? 'tipo "' + tipo + '" da ventilação: sanitário, que a NBR 10152 não traz (valor de projeto; confira)'
+            : 'tipo "' + tipo + '" da ventilação: limite de ruído de centro cirúrgico (NBR 10152, p. 12)');
+        // v3.8.0 (R3 da revisão da v3.7.0; texto aprovado pelo Francisco em 2026-11-24): tipo presente e sem correspondência sai com o nome
+        else if (tipo) linha(rel, 'info', onde, 'Aplicação (limite de ruído)', tipo, apl ? apl.nome : txt(amb.crit.aplicacao),
+          'tipo "' + tipo + '" da ventilação sem aplicação correspondente no Difusores: fica a aplicação padrão; confira o limite de ruído (NBR 10152)');
+        else linha(rel, 'info', onde, 'Aplicação (limite de ruído)', '(ausente)', apl ? apl.nome : txt(amb.crit.aplicacao),
           'o arquivo da ventilação não traz a aplicação: confira o limite de ruído (NBR 10152)');
         // revisor D2 (2026-11-23, opção "linha no relatório"); texto conferido na NBR 7256, p. 11 (conferente-normas)
         if (typeof a.tipo === 'string' && a.tipo.trim() === 'Sala de cirurgia') linha(rel, 'info', onde, 'Distribuição do ar', 'sala de cirurgia', '(confira)',
@@ -5616,7 +5734,7 @@ window.HVAC = window.HVAC || {};
 </script>
 <!-- Plataforma: componentes e casca -->
 <script>
-/* ==== plataforma v0.6.1: js/interface/componentes.js ==== */
+/* ==== plataforma v0.7.0: js/interface/componentes.js ==== */
 /* Plataforma HVAC. Componentes do guia de interface: campo com estado, selos, valor calculado, seletor, segmentado, passos,
    cabeçalho de tela, indicador, bloco recolhível, barras, tabela de passos e, desde a v0.4.0, a lista de cartões do celular.
    Só montam HTML; não conhecem app nem motor.
@@ -5778,7 +5896,7 @@ window.HVAC = window.HVAC || {};
 
 </script>
 <script>
-/* ==== plataforma v0.6.1: js/interface/casca.js ==== */
+/* ==== plataforma v0.7.0: js/interface/casca.js ==== */
 /* Plataforma HVAC. Casca comum dos apps: estado, armazenamento, rotas, trilha, faixa de resultado, gaveta, janela, paleta de comandos,
    tema, modo aprendizado, arquivo de projeto com relatório de importação e impressão do memorial; desde a v0.4.0, o celular
    (Menu, barra de passos, Voltar, dica por toque, tabelas que rolam, memorial em escala, teclado), só com a tela estreita.
@@ -6072,11 +6190,28 @@ window.HVAC = window.HVAC || {};
   }
   function abrirPaleta() { U.sobre = { tipo: 'paleta', busca: '', sel: 0 }; desenharSobre(); document.getElementById('paleta-busca').focus(); }
 
-  function gerarPdf() {
+  /* Gerar PDF (v0.7.0): com A.faltaPreencher(E, R) → [{ onde, texto, rota }] não vazio, abre a janela "Falta preencher" (lista,
+     "Voltar e preencher", "Gerar assim mesmo"); sem o item no manifesto, ou com a lista vazia, imprime direto, como antes. */
+  function imprimir(depois) {   // depois: espera o desenho que fecha a janela
     var r = rotaQueImprime();
     if (!r) return;
     if (U.tela !== r) { location.hash = '#/' + r; setTimeout(function () { window.print(); }, 150); }
+    else if (depois) setTimeout(function () { window.print(); }, 0);
     else window.print();
+  }
+  function htmlFaltaPreencher(L) {
+    return '<h2>Falta preencher</h2><ul class="falta-preencher" style="margin:10px 0 0;padding-left:20px">' + L.map(function (x, i) {
+        return '<li style="margin:4px 0">' + (x.onde ? esc(x.onde) + ': ' : '') + esc(x.texto) + '.' +
+          (x.rota ? ' <a href="' + esc(x.rota) + '" data-acao="pdf-ir" data-i="' + i + '">Abrir</a>' : '') + '</li>';
+      }).join('') + '</ul>' +
+      '<div class="acoes" style="margin-top:14px"><button type="button" class="botao prim" data-acao="fechar">Voltar e preencher</button>' +
+      '<button type="button" class="botao" data-acao="pdf-assim">Gerar assim mesmo</button></div>';
+  }
+  function gerarPdf() {
+    if (!rotaQueImprime()) return;
+    var L = A.faltaPreencher ? A.faltaPreencher(E, A.calcular ? A.calcular(E) : null) || [] : [];
+    if (L.length) { U.sobre = { tipo: 'janela', html: htmlFaltaPreencher(L), falta: L }; return; }
+    imprimir();
   }
   /* Texto do arquivo de projeto como é salvo: o projeto, o envelope (formato, versaoFormato, versaoApp e, logo depois, versaoPlataforma)
      e os blocos que A.arquivo.aoSalvar(E, R) devolver (ex.: { resultados: {...} }). Os blocos entram só nesta cópia: E não os recebe.
@@ -6191,6 +6326,12 @@ window.HVAC = window.HVAC || {};
     paleta: function () { U.sobre = { tipo: 'paleta', busca: '', sel: 0 }; return 'paleta-busca'; },
     comando: function (el) { var c = comandosFiltrados()[+el.getAttribute('data-i')]; U.sobre = null; if (c) c.fn(); },
     pdf: gerarPdf,
+    'pdf-assim': function () { U.sobre = null; imprimir(true); },                     // v0.7.0: janela "Falta preencher"
+    'pdf-ir': function (el) {
+      var x = U.sobre && U.sobre.falta ? U.sobre.falta[+el.getAttribute('data-i')] : null;
+      U.sobre = null;
+      if (x && x.rota && location.hash !== x.rota) location.hash = x.rota;
+    },
     salvar: salvarArquivo,
     'abrir-arquivo': function () { document.getElementById('arquivo').click(); },
     ajuda: function () { if (A.ajuda && A.ajuda.length) U.sobre = { tipo: 'janela', html: htmlAjuda() }; },
@@ -8044,6 +8185,22 @@ window.HVAC = window.HVAC || {};
     return h + '</section>';
   }
 
+  /* v3.10.0 (plataforma 0.7.0, pedido do Francisco de 25/11): sai o "Antes de emitir" da tela Memorial; ao gerar o PDF, a casca abre a
+     janela "Falta preencher" com esta lista: campo da Identificação em branco e "Para selecionar, falta: …" de cada ambiente.
+     Reprovado, ressalva e alerta seguem no cartão do fim da Seleção. */
+  var IDENT = [['nome', 'Nome do projeto'], ['responsavel', 'Responsável'], ['revisao', 'Revisão']];
+  function faltaPreencher(E) {
+    var p = E.projeto || {}, L = [];
+    IDENT.forEach(function (c) {
+      if (String(p[c[0]] === null || p[c[0]] === undefined ? '' : p[c[0]]).trim() === '') L.push({ onde: 'Projeto', texto: c[1] + ' em branco', rota: '#/projeto' });
+    });
+    D.motor.config = p.config;
+    EM.pendencias(E).forEach(function (x) {
+      if (x.nivel === 'impede' && /^Para selecionar, falta: /.test(x.texto)) L.push({ onde: x.onde, texto: x.texto, rota: x.rota });
+    });
+    return L;
+  }
+
   // ---------------------------------------------------------------- CSV das alternativas
   function csv(E, i) {
     var F = D.util.fmt, sep = ';', S = P, cab = ['Ambiente', '#', 'Tipo', 'Alternativa', 'Peças', 'Q por peça (m³/h)', 'Velocidade (m/s)', 'Δp (mmCA)', 'LN (dB(A))', 'Ruído no ambiente (dB(A))', 'Alcance mín (m)', 'Alcance máx (m)',
@@ -8252,7 +8409,7 @@ window.HVAC = window.HVAC || {};
       fora += '<nav class="amb-nav mem-nav" aria-label="Escopo do memorial"><a href="#/memorial"' + (i === null ? ' aria-current="page"' : '') + '>Projeto inteiro</a>' +
         E.ambientes.map(function (a, k) { return '<a href="#/memorial/' + k + '"' + (i === k ? ' aria-current="page"' : '') + '>' + esc(nomeDe(a)) + '</a>'; }).join('') + '</nav>';
     }
-    fora += antesDeEmitir(E, i === null ? undefined : i) + '</div>';
+    fora += '</div>';   // v3.10.0: sem o "Antes de emitir" (fica no fim da Seleção); o que falta preencher vem na janela do Gerar PDF
 
     var s = '<div class="cab-f"><div><h1>Memorial de cálculo: seleção de difusores e grelhas</h1><div>' + esc(p.nome || 'Projeto sem nome') + '</div></div>' +
       '<div>Revisão ' + esc(p.revisao) + '<br>' + dataHoje() + '<br>' + (p.responsavel ? esc(p.responsavel) : '<em>responsável não informado</em>') + '</div></div>';
@@ -8263,7 +8420,7 @@ window.HVAC = window.HVAC || {};
     return fora + '<article class="folha">' + s + '</article>';
   }
 
-  H.ui.telaMemorial = { tela: tela, antesDeEmitir: antesDeEmitir, csv: csv };
+  H.ui.telaMemorial = { tela: tela, antesDeEmitir: antesDeEmitir, csv: csv, faltaPreencher: faltaPreencher };
 })(window.HVAC, window.Difusores);
 
 </script>
@@ -8414,6 +8571,8 @@ window.HVAC = window.HVAC || {};
       { r: 'selecao', t: 'Seleção', s: function (E) { var n = E.ambientes.filter(function (a, i) { var v = adotada(E, i), s = v.sup || (soExaustao(v) ? v.ret : null); return s && s.selo !== 'reprovado'; }).length; return n + ' de ' + E.ambientes.length + ' com solução aprovada'; } },
       { r: 'memorial', t: 'Memorial', s: function (E) { return 'revisão ' + E.projeto.revisao; } }
     ],
+    // plataforma 0.7.0: o que falta preencher abre a janela da casca ao gerar o PDF (memorial3.js)
+    faltaPreencher: function (E) { return H.ui.telaMemorial.faltaPreencher(E); },
 
     calcular: function (E) { return { amb: E.ambientes.map(function (a) { return AD.calcular(a, E.projeto); }) }; },
 
@@ -8472,7 +8631,7 @@ window.HVAC = window.HVAC || {};
         '<li><b>Projeto</b>: nome, responsável e altitude (projeto novo começa em Brasília).</li>' +
         '<li><b>Ambientes</b>: crie um ambiente e preencha os blocos (Geometria e montagem, Ar, Ruído e conforto, Produtos). A faixa no rodapé mostra a solução a cada alteração.</li>' +
         '<li><b>Seleção</b>: a solução adotada, a conta de cada número (clique no número), as alternativas com “adotar” e a planta (arraste um difusor ou uma grelha para ajustar a posição).</li>' +
-        '<li><b>Memorial</b>: confira “Antes de emitir” e gere o PDF.</li>' +
+        '<li><b>Memorial</b>: gere o PDF; se faltar algum dado, o app avisa.</li>' +
         '<li>Salve o arquivo do projeto. Ctrl+K abre a paleta de comandos; Referências traz as tabelas e as fontes.</li></ol>' },
       { titulo: 'O que o app calcula', html: '<ul class="lista-avisos">' +
         '<li>Vazão pelo calor sensível do ambiente, sem ar exterior, sem latente e sem calor ao retorno (Q = Qs·3600/(ρ·cp·ΔT)), com ρ pela altitude e cp do ar úmido; zona ocupada pela postura e pelas paredes externas (NBR 16401-2, p. 8, l. 11); limite de velocidade na zona ocupada pela temperatura operativa (6.3.2.4, F.4) ou sem limite com controle local (6.3.2.3).</li>' +
